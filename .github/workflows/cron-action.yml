@@ -1,0 +1,39 @@
+name: Morning Report Alpha Cron
+
+on:
+  # 1. 스케줄링 (Cron)
+  schedule:
+    # 매일 평일(월~금) 아침 8시 (KST) 실행
+    # KST 기준 월~금 08:00는 UTC 기준 일~목 23:00이므로 요일을 0-4(일~목)로 설정합니다.
+    - cron: "0 23 * * 0-4"
+
+  # 2. 수동 실행 (GitHub Actions 탭에서 수동으로 트리거 가능)
+  workflow_dispatch:
+
+jobs:
+  run-morning-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1단계: GitHub 저장소에서 코드 가져오기
+      - name: 저장소 체크아웃 (Checkout Repository)
+        uses: actions/checkout@v4
+
+      # 2단계: Node.js 환경 세팅
+      - name: Node.js 환경 설정 (Setup Node.js)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20" # 안정적인 LTS 버전 사용
+          cache: "npm" # npm 패키지 캐싱으로 속도 향상
+
+      # 3단계: 의존성 패키지 설치
+      - name: 패키지 설치 (Install Dependencies)
+        run: npm install
+
+      # 4단계: 스크립트 실행 (환경 변수 주입)
+      - name: AI 리포트 생성 및 텔레그램 발송 (Run Script)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: npm start
