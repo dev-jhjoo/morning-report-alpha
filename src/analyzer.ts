@@ -1,119 +1,78 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { NewsItem } from "./scraper.js";
 import * as dotenv from "dotenv";
-// NewsItem 앞에 'type' 키워드 추가!
-import { fetchDailyNews, type NewsItem } from "./scraper.js";
 
 dotenv.config();
 
-// 응답받을 데이터의 타입 정의
-export interface InsightReport {
-  target: string;
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
+// 최신 2.5-flash 모델 사용
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+export interface AnalysisResult {
   score: number;
-  sentiment: "긍정" | "중립" | "부정";
+  trend: string;
   summary: string[];
   insight: string;
 }
 
-// API 키 확인
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.error("❌ GEMINI_API_KEY가 .env 파일에 설정되지 않았습니다.");
-  process.exit(1);
-}
-
-// Gemini 인스턴스 초기화 (1.5 Flash 모델이 속도/비용 면에서 MVP에 가장 적합합니다)
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
 /**
- * 수집된 뉴스를 바탕으로 AI 투자 심리 분석을 수행합니다.
- * @param ticker 종목명
- * @param news 뉴스를 담은 배열
- * @returns JSON 파싱된 InsightReport 객체
+ * 수집된 뉴스를 바탕으로 시니어 애널리스트 페르소나를 적용하여 투자 심리를 분석합니다.
  */
 export async function analyzeNews(
   ticker: string,
-  news: NewsItem[]
-): Promise<InsightReport | null> {
-  if (news.length === 0) {
-    console.log("분석할 뉴스가 없습니다.");
-    return null;
-  }
+  newsList: NewsItem[]
+): Promise<AnalysisResult | null> {
+  if (newsList.length === 0) return null;
 
-  // AI에게 전달할 수 있도록 뉴스 데이터를 하나의 텍스트로 묶습니다.
-  const newsText = news
-    .map((n, i) => `[${i + 1}] 제목: ${n.title} (발행일: ${n.pubDate})`)
-    .join("\n");
+  console.log(
+    `🤖 [${ticker}] 시니어 애널리스트 AI가 분석을 시작합니다 (뉴스 ${newsList.length}건)...`
+  );
 
-  // 시스템 프롬프트 (JSON 형식으로만 답하도록 강력하게 지시)
+  // AI에게 부여할 강력한 페르소나와 프롬프트
   const prompt = `
-    너는 20년 경력의 날카로운 시니어 주식 애널리스트야.
-    아래 제공된 [${ticker}]의 오늘자 뉴스 헤드라인들을 분석해서 단기 투자 심리와 모멘텀을 평가해줘.
+    당신은 20년 경력의 월스트리트 시니어 퀀트 애널리스트입니다. 
+    거시 경제의 흐름을 읽는 통찰력과 노이즈를 걸러내는 냉철한 판단력을 가지고 있습니다.
     
-    [뉴스 데이터]
-    ${newsText}
+    다음은 오늘 [${ticker}] 종목에 대한 최근 24시간 뉴스 헤드라인 목록입니다.
+    이 뉴스들을 분석하여 다음 JSON 양식에 맞춰 정확하게 답변해 주세요.
+    
+    [분석 조건]
+    1. score: 뉴스의 전반적인 뉘앙스를 분석하여 0(극단적 공포/매도) ~ 100(극단적 탐욕/매수) 사이의 정수로 평가.
+    2. trend: score에 따라 '강한 매수', '분할 매수', '관망', '비중 축소', '적극 매도' 중 하나로 표현.
+    3. summary: 노이즈를 제거하고 실제 주가에 영향을 미칠 핵심 호재/악재 팩트만 3줄로 요약 (배열).
+    4. insight: 시니어 애널리스트로서 오늘 장에 임하는 투자자에게 건네는 날카로운 한 줄 조언.
 
-    [출력 조건]
-    반드시 아래의 순수 JSON 포맷으로만 응답할 것. 마크다운(\`\`\`json 등)이나 다른 설명은 절대 포함하지 마.
+    [뉴스 데이터]
+    ${newsList.map((n, i) => `${i + 1}. ${n.title}`).join("\n")}
+
+    [출력 형식 (반드시 유효한 JSON만 출력할 것)]
     {
-        "target": "${ticker}",
-        "score": 0~100 사이의 정수 (높을수록 호재, 탐욕, 매수 우위),
-        "sentiment": "긍정", "중립", "부정" 중 택 1,
-        "summary": [
-            "가장 중요한 핵심 뉴스 요약 1",
-            "가장 중요한 핵심 뉴스 요약 2",
-            "가장 중요한 핵심 뉴스 요약 3"
-        ],
-        "insight": "이 뉴스들을 종합했을 때 내일 장 초반 대응을 위한 애널리스트의 날카로운 한줄 코멘트"
+        "score": 85,
+        "trend": "분할 매수",
+        "summary": ["핵심 요약 1", "핵심 요약 2", "핵심 요약 3"],
+        "insight": "전문가의 날카로운 한 줄 조언"
     }
     `;
 
   try {
-    console.log(
-      `🤖 [${ticker}] AI 분석을 시작합니다 (뉴스 ${news.length}건)...`
-    );
-
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
-    // 간혹 AI가 마크다운 코드블럭(```json)을 붙여서 주는 경우를 대비해 텍스트 클렌징
-    const cleanedText = responseText
+    // Markdown JSON 블록(```json ... ```)이 섞여 나올 경우를 대비한 정제 로직
+    const cleanJsonStr = responseText
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
+    const analysisData: AnalysisResult = JSON.parse(cleanJsonStr);
 
-    const report: InsightReport = JSON.parse(cleanedText);
-    return report;
+    return analysisData;
   } catch (error) {
-    console.error("❌ AI 분석 중 에러 발생:", error);
+    console.error(`❌ [${ticker}] AI 분석 중 에러 발생:`, error);
     return null;
   }
-}
-
-// ESM 환경에서 이 파일을 직접 실행할 경우 테스트 코드가 동작합니다.
-const isMain = process.argv[1] && process.argv[1].endsWith("analyzer.ts");
-
-if (isMain) {
-  const testTicker = "삼성전자";
-
-  // 1. Scraper 모듈을 이용해 최신 뉴스 수집
-  fetchDailyNews(testTicker).then(async (news) => {
-    // 상위 10개의 뉴스만 AI에게 전달 (비용 및 컨텍스트 최적화)
-    const targetNews = news.slice(0, 10);
-
-    // 2. 수집된 뉴스를 AI 모듈에 전달
-    const report = await analyzeNews(testTicker, targetNews);
-
-    if (report) {
-      console.log("\n=======================================");
-      console.log(` 📊 [${report.target}] AI 투자 심리 리포트`);
-      console.log("=======================================");
-      console.log(`🌡️ 심리 점수: ${report.score}점 (${report.sentiment})`);
-      console.log("\n📝 [핵심 요약]");
-      report.summary.forEach((line, i) => console.log(`${i + 1}. ${line}`));
-      console.log("\n💡 [AI 인사이트]");
-      console.log(`"${report.insight}"`);
-      console.log("=======================================\n");
-    }
-  });
 }
