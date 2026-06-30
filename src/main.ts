@@ -8,10 +8,30 @@ dotenv.config();
 
 // 💡 분석할 관심 종목 → Yahoo Finance 심볼 매핑 (주가 수집용)
 // 한국 종목은 6자리코드+.KS, 미국은 티커 그대로. 새 종목 추가 시 여기에 등록.
+// 시장 구분은 심볼 접미사(.KS=한국)와 prices.csv의 currency(KRW/USD)로 파생됨 → 별도 메타 불필요.
 const TARGET_TICKERS: Record<string, string> = {
+  // 한국 시총 상위 10 (KRX)
   삼성전자: "005930.KS",
   SK하이닉스: "000660.KS",
-  테슬라: "TSLA",
+  LG에너지솔루션: "373220.KS",
+  삼성바이오로직스: "207940.KS",
+  현대자동차: "005380.KS",
+  기아: "000270.KS",
+  셀트리온: "068270.KS",
+  POSCO홀딩스: "005490.KS",
+  KB금융: "105560.KS",
+  삼성SDI: "006400.KS",
+  // 미국 시총 상위 10 (NASDAQ/NYSE)
+  Apple: "AAPL",
+  NVIDIA: "NVDA",
+  Microsoft: "MSFT",
+  Amazon: "AMZN",
+  Alphabet: "GOOGL",
+  Meta: "META",
+  Tesla: "TSLA",
+  Broadcom: "AVGO",
+  버크셔해서웨이: "BRK-B",
+  JPMorgan: "JPM",
 };
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
