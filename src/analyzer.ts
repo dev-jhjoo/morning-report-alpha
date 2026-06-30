@@ -44,9 +44,11 @@ const analysisSchema: Schema = {
   required: ["score", "trend", "summary", "insight"],
 };
 
-// 3. 최신 2.5-flash 모델 사용 및 JSON 출력(Schema) 강제 설정
+// 3. 모델 사용 및 JSON 출력(Schema) 강제 설정
+// flash-lite는 무료 티어 일일 요청 한도가 flash보다 훨씬 높아 20개 종목 일괄 분석에 적합.
+// (flash 무료 티어는 20req/day라 종목 수와 동률 → 첫 종목 외 전부 429 발생했음)
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-2.5-flash-lite",
   generationConfig: {
     responseMimeType: "application/json",
     responseSchema: analysisSchema,
@@ -100,13 +102,22 @@ export async function analyzeNews(
 
       return analysisData;
     } catch (error: any) {
-      if (error.status === 503) {
+      // 429(rate limit/quota), 503(과부하)은 재시도. 그 외는 즉시 포기.
+      if (error.status === 429 || error.status === 503) {
+        // 서버가 RetryInfo.retryDelay("36s")를 주면 그만큼, 없으면 3초 대기 (최대 60초)
+        const retryInfo = error?.errorDetails?.find((d: any) =>
+          String(d?.["@type"]).includes("RetryInfo")
+        );
+        const delaySec = Math.min(
+          parseInt(retryInfo?.retryDelay, 10) || 3,
+          60
+        );
         console.log(
-          `⏳ [${ticker}] 서버 과부하(503). 3초 대기 후 재시도합니다... (남은 시도: ${
+          `⏳ [${ticker}] ${error.status} 응답. ${delaySec}초 대기 후 재시도... (남은 시도: ${
             retries - 1
           })`
         );
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, delaySec * 1000));
         retries--;
       } else {
         console.error(`❌ [${ticker}] AI 분석 중 에러 발생:`, error);
