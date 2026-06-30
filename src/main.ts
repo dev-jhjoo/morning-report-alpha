@@ -1,5 +1,6 @@
 import { fetchDailyNews } from "./scraper.js";
 import { analyzeNews } from "./analyzer.js";
+import { appendScore } from "./storage.js";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -37,6 +38,10 @@ async function runMorningReport() {
   const today = new Date().toLocaleDateString("ko-KR", {
     timeZone: "Asia/Seoul",
   });
+  // 저장용 ISO 날짜 (YYYY-MM-DD, Asia/Seoul)
+  const isoDate = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Seoul",
+  });
 
   // 리포트 헤더 생성
   let finalReport = `🌅 <b>[Morning Report Alpha] 오늘의 투자 브리핑</b>\n🗓 Date: ${today}\n\n`;
@@ -53,6 +58,9 @@ async function runMorningReport() {
     const analysis = await analyzeNews(ticker, news);
 
     if (analysis) {
+      // 데이터 누적 저장 (Phase 1)
+      appendScore(isoDate, ticker, analysis);
+
       // 이모지 선택 로직 (점수 기반)
       const icon =
         analysis.score >= 70 ? "🔥" : analysis.score <= 30 ? "❄️" : "📊";
