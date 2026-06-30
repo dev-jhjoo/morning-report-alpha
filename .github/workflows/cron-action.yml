@@ -5,7 +5,7 @@ on:
   schedule:
     # 매일 평일(월~금) 아침 8시 (KST) 실행
     # KST 기준 월~금 08:00는 UTC 기준 일~목 23:00이므로 요일을 0-4(일~목)로 설정합니다.
-    - cron: "0 23 * * 0-4"
+    - cron: "0 22 * * 0-4"
 
   # 2. 수동 실행 (GitHub Actions 탭에서 수동으로 트리거 가능)
   workflow_dispatch:
