@@ -41,11 +41,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: npm start
 
-      # 5단계: 누적된 점수 데이터(data/scores.csv) 커밋
+      # 5단계: 누적된 데이터(점수+주가) 커밋
       - name: 데이터 커밋 (Commit Data)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/scores.csv
-          git diff --staged --quiet || git commit -m "data: 점수 누적 (run ${{ github.run_id }})"
+          git add data/
+          git diff --staged --quiet || git commit -m "data: 점수+주가 누적 (run ${{ github.run_id }})"
           git push

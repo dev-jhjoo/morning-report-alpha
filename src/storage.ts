@@ -1,10 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { AnalysisResult } from "./analyzer.js";
+import type { PriceData } from "./price.js";
 
 const DATA_DIR = "data";
 const CSV_PATH = path.join(DATA_DIR, "scores.csv");
 const HEADER = "date,ticker,score,trend,insight\n";
+const PRICE_PATH = path.join(DATA_DIR, "prices.csv");
+const PRICE_HEADER = "date,ticker,symbol,price,priceDate,currency\n";
 
 // CSV 필드 이스케이프: 쉼표/따옴표/줄바꿈이 있으면 따옴표로 감싸고 내부 따옴표는 2개로
 function csvField(value: string | number): string {
@@ -12,17 +15,39 @@ function csvField(value: string | number): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// 파일이 없으면 헤더부터 만들고 한 줄 append
+function appendRow(file: string, header: string, fields: (string | number)[]) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(file)) fs.writeFileSync(file, header);
+  fs.appendFileSync(file, fields.map(csvField).join(",") + "\n");
+}
+
 /**
- * 분석 결과 한 건을 data/scores.csv에 append. 파일이 없으면 헤더부터 생성.
+ * 분석 결과 한 건을 data/scores.csv에 append.
  * @param date YYYY-MM-DD (Asia/Seoul 기준)
  */
 export function appendScore(date: string, ticker: string, a: AnalysisResult) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(CSV_PATH)) fs.writeFileSync(CSV_PATH, HEADER);
+  appendRow(CSV_PATH, HEADER, [date, ticker, a.score, a.trend, a.insight]);
+}
 
-  const row =
-    [date, ticker, a.score, a.trend, a.insight].map(csvField).join(",") + "\n";
-  fs.appendFileSync(CSV_PATH, row);
+/**
+ * 주가 한 건을 data/prices.csv에 append.
+ * @param date 수집일 YYYY-MM-DD (Asia/Seoul). p.priceDate는 종가의 실제 날짜.
+ */
+export function appendPrice(
+  date: string,
+  ticker: string,
+  symbol: string,
+  p: PriceData
+) {
+  appendRow(PRICE_PATH, PRICE_HEADER, [
+    date,
+    ticker,
+    symbol,
+    p.price,
+    p.priceDate,
+    p.currency,
+  ]);
 }
 
 // 직접 실행 시 자체 점검
