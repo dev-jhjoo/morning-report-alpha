@@ -11,10 +11,20 @@
       --bg: #f6f7f9; --fg: #1b1f24; --card: #fff; --line: #e3e6ea;
       --muted: #6b7280; --accent: #4f46e5; --shadow: 0 1px 3px #0001, 0 8px 24px #0000000a;
     }
+    /* 다크 팔레트 — OS가 dark면 자동 적용, 단 명시적 [data-theme=light]이면 무시 */
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
-              --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006; }
+      :root:not([data-theme="light"]) {
+        --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
+        --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
+      }
     }
+    /* 수동 토글이 OS 설정을 덮어씀 */
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
+      --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
     * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -26,6 +36,15 @@
     h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
     .muted { color: var(--muted); font-size: .85rem; }
     .err { color: #ef4444; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: 1rem; }
+    .controls label { font-size: .85rem; color: var(--muted); }
+    select, .toggle {
+      font: inherit; font-size: .9rem; color: var(--fg); background: var(--card);
+      border: 1px solid var(--line); border-radius: 9px; padding: .45rem .7rem; cursor: pointer;
+    }
+    .toggle { margin-left: auto; line-height: 1; }
+    select:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
     .charts { display: grid; gap: 1rem; margin-top: 1.25rem;
               grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
@@ -77,6 +96,11 @@
     <h1>🌅 투자심리 vs 주가</h1>
     <span class="muted" id="meta">불러오는 중…</span>
   </header>
+  <div class="controls">
+    <label for="ticker">종목</label>
+    <select id="ticker"><option value="">전체</option></select>
+    <button class="toggle" id="theme" type="button" aria-label="테마 전환">🌓</button>
+  </div>
   <div class="charts" id="charts"></div>
   <h2>전체 데이터</h2>
   <div class="card table-card">
@@ -114,6 +138,30 @@ console.assert(
   "CSV 파서: 따옴표 내 쉼표 처리 실패"
 );
 
+// 테마 토글 (localStorage에 저장, OS 설정 덮어씀)
+const themeBtn = document.getElementById("theme");
+themeBtn.onclick = () => {
+  const isDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.getAttribute("data-theme") || (isDark ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  render(); // 차트 색이 테마 토큰을 쓰므로 다시 그림
+};
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+let allRows = [];
+const sel = document.getElementById("ticker");
+sel.onchange = render;
+
+function render() {
+  const t = sel.value;
+  const rows = t ? allRows.filter(r => r.ticker === t) : allRows;
+  renderTable(rows);
+  renderCharts(rows);
+}
+
 async function load() {
   const meta = document.getElementById("meta");
   try {
@@ -129,12 +177,15 @@ async function load() {
     for (const p of prices) priceBy[p.date + "|" + p.ticker] = p;
 
     // 점수에 종가 결합
-    const rows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}) }));
-    rows.sort((a, b) => (a.date < b.date ? 1 : -1)); // 최신순
+    allRows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}) }));
+    allRows.sort((a, b) => (a.date < b.date ? 1 : -1)); // 최신순
 
-    renderTable(rows);
-    renderCharts(rows);
-    meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${rows[0]?.date ?? "-"}`;
+    // 셀렉트 박스 채우기
+    for (const t of [...new Set(allRows.map(r => r.ticker))])
+      sel.add(new Option(t, t));
+
+    render();
+    meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${allRows[0]?.date ?? "-"}`;
   } catch (e) {
     meta.innerHTML = `<span class="err">데이터 로드 실패: ${e}</span>`;
   }
@@ -166,6 +217,7 @@ function renderCharts(rows) {
   const byTicker = {};
   for (const r of rows) (byTicker[r.ticker] ||= []).push(r);
   const container = document.getElementById("charts");
+  container.innerHTML = ""; // 재렌더 시 기존 차트 제거
 
   for (const [ticker, list] of Object.entries(byTicker)) {
     list.sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
