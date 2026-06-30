@@ -10,6 +10,9 @@ on:
   # 2. 수동 실행 (GitHub Actions 탭에서 수동으로 트리거 가능)
   workflow_dispatch:
 
+permissions:
+  contents: write # data/scores.csv 커밋/푸시 권한
+
 jobs:
   run-morning-report:
     runs-on: ubuntu-latest
@@ -37,3 +40,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: npm start
+
+      # 5단계: 누적된 점수 데이터(data/scores.csv) 커밋
+      - name: 데이터 커밋 (Commit Data)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/scores.csv
+          git diff --staged --quiet || git commit -m "data: 점수 누적 (run ${{ github.run_id }})"
+          git push
