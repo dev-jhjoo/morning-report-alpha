@@ -1,12 +1,18 @@
 import { fetchDailyNews } from "./scraper.js";
 import { analyzeNews } from "./analyzer.js";
-import { appendScore } from "./storage.js";
+import { appendScore, appendPrice } from "./storage.js";
+import { fetchClosePrice } from "./price.js";
 import * as dotenv from "dotenv";
 
 dotenv.config();
 
-// 💡 분석할 관심 종목 배열 (원하시는 종목으로 자유롭게 커스텀하세요)
-const TARGET_TICKERS = ["삼성전자", "SK하이닉스", "테슬라"];
+// 💡 분석할 관심 종목 → Yahoo Finance 심볼 매핑 (주가 수집용)
+// 한국 종목은 6자리코드+.KS, 미국은 티커 그대로. 새 종목 추가 시 여기에 등록.
+const TARGET_TICKERS: Record<string, string> = {
+  삼성전자: "005930.KS",
+  SK하이닉스: "000660.KS",
+  테슬라: "TSLA",
+};
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -47,15 +53,24 @@ async function runMorningReport() {
   let finalReport = `🌅 <b>[Morning Report Alpha] 오늘의 투자 브리핑</b>\n🗓 Date: ${today}\n\n`;
 
   console.log(
-    `🚀 다중 종목 분석 파이프라인 시작... (대상: ${TARGET_TICKERS.join(", ")})`
+    `🚀 다중 종목 분석 파이프라인 시작... (대상: ${Object.keys(
+      TARGET_TICKERS
+    ).join(", ")})`
   );
 
-  for (const ticker of TARGET_TICKERS) {
+  for (const [ticker, symbol] of Object.entries(TARGET_TICKERS)) {
     // 1. 데이터 수집
     const news = await fetchDailyNews(ticker);
 
     // 2. AI 분석
     const analysis = await analyzeNews(ticker, news);
+
+    // 3. 주가 수집 (Phase 2) — 분석 성공 여부와 무관하게 시계열을 끊지 않도록 항상 시도
+    const price = await fetchClosePrice(symbol);
+    if (price) appendPrice(isoDate, ticker, symbol, price);
+    const priceLine = price
+      ? `  💰 종가: ${price.price.toLocaleString()} ${price.currency} (${price.priceDate})\n`
+      : "";
 
     if (analysis) {
       // 데이터 누적 저장 (Phase 1)
@@ -65,14 +80,15 @@ async function runMorningReport() {
       const icon =
         analysis.score >= 70 ? "🔥" : analysis.score <= 30 ? "❄️" : "📊";
 
-      // 3. 리포트 본문 조합
+      // 4. 리포트 본문 조합
       finalReport += `<b>[${ticker}]</b> ${icon} 투심: <b>${analysis.score}점 (${analysis.trend})</b>\n`;
+      finalReport += priceLine;
       analysis.summary.forEach((line, idx) => {
         finalReport += `  ${idx + 1}. ${line}\n`;
       });
       finalReport += `  💡 <i>${analysis.insight}</i>\n\n`;
     } else {
-      finalReport += `<b>[${ticker}]</b> ❌ 분석 데이터를 가져오지 못했습니다.\n\n`;
+      finalReport += `<b>[${ticker}]</b> ❌ 분석 데이터를 가져오지 못했습니다.\n${priceLine}\n`;
     }
 
     // API Rate Limit 방지를 위해 종목당 2초 대기
