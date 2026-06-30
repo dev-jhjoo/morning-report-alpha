@@ -44,7 +44,16 @@
       border: 1px solid var(--line); border-radius: 9px; padding: .45rem .7rem; cursor: pointer;
     }
     .toggle { margin-left: auto; line-height: 1; }
-    select:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    select:focus-visible, .toggle:focus-visible, .chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    /* 시장 필터 세그먼트 */
+    .chips { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+    .chips button { font: inherit; font-size: .85rem; color: var(--fg); background: var(--card);
+                    border: 0; border-left: 1px solid var(--line); padding: .45rem .8rem; cursor: pointer; }
+    .chips button:first-child { border-left: 0; }
+    .chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+    /* 차트 섹션 헤더 (그리드 전체 폭 차지) */
+    .mkt-head { grid-column: 1 / -1; font-size: .9rem; font-weight: 600; color: var(--muted); margin: 1rem 0 -.25rem; }
+    .mkt-head:first-child { margin-top: 0; }
 
     .charts { display: grid; gap: 1rem; margin-top: 1.25rem;
               grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
@@ -97,6 +106,11 @@
     <span class="muted" id="meta">불러오는 중…</span>
   </header>
   <div class="controls">
+    <div class="chips" id="markets" role="group" aria-label="시장 필터">
+      <button data-mkt="all" aria-pressed="true">전체</button>
+      <button data-mkt="KR" aria-pressed="false">🇰🇷 한국</button>
+      <button data-mkt="US" aria-pressed="false">🇺🇸 미국</button>
+    </div>
     <label for="ticker">종목</label>
     <select id="ticker"><option value="">전체</option></select>
     <button class="toggle" id="theme" type="button" aria-label="테마 전환">🌓</button>
@@ -152,12 +166,25 @@ const saved = localStorage.getItem("theme");
 if (saved) document.documentElement.setAttribute("data-theme", saved);
 
 let allRows = [];
+let market = "all"; // 시장 필터: all | KR | US
 const sel = document.getElementById("ticker");
 sel.onchange = render;
 
+// 시장 필터 칩 클릭 → 필터 전환 + 종목 셀렉트 초기화(타 시장 종목 선택 충돌 방지)
+document.getElementById("markets").onclick = (e) => {
+  const btn = e.target.closest("button[data-mkt]");
+  if (!btn) return;
+  market = btn.dataset.mkt;
+  for (const b of e.currentTarget.children) b.setAttribute("aria-pressed", b === btn);
+  sel.value = "";
+  render();
+};
+
 function render() {
   const t = sel.value;
-  const rows = t ? allRows.filter(r => r.ticker === t) : allRows;
+  const rows = allRows.filter(r =>
+    (market === "all" || r.market === market) && (!t || r.ticker === t)
+  );
   renderTable(rows);
   renderCharts(rows);
 }
@@ -172,17 +199,25 @@ async function load() {
     const scores = parseCSV(scoresT);
     const prices = parseCSV(pricesT);
 
-    // date+ticker로 종가 매핑
-    const priceBy = {};
-    for (const p of prices) priceBy[p.date + "|" + p.ticker] = p;
+    // date+ticker로 종가 매핑 + 시장 판별(.KS=한국, 그 외=미국)
+    const priceBy = {}, marketOf = {};
+    for (const p of prices) {
+      priceBy[p.date + "|" + p.ticker] = p;
+      marketOf[p.ticker] = p.symbol.endsWith(".KS") ? "KR" : "US";
+    }
+    // 종가 데이터가 없는 종목은 종목명에 한글이 있으면 한국으로 추정
+    const mkt = t => marketOf[t] || (/[가-힣]/.test(t) ? "KR" : "US");
 
-    // 점수에 종가 결합
-    allRows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}) }));
-    allRows.sort((a, b) => (a.date < b.date ? 1 : -1)); // 최신순
+    // 점수에 종가 결합 + 시장 태깅
+    allRows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}), market: mkt(s.ticker) }));
+    // 최신 날짜 우선, 같은 날 안에서는 점수 높은 순(과열 종목이 위로)
+    allRows.sort((a, b) => a.date !== b.date ? (a.date < b.date ? 1 : -1) : (+b.score || 0) - (+a.score || 0));
 
-    // 셀렉트 박스 채우기
-    for (const t of [...new Set(allRows.map(r => r.ticker))])
-      sel.add(new Option(t, t));
+    // 셀렉트 박스: 시장별 optgroup으로 묶기
+    const og = { KR: document.createElement("optgroup"), US: document.createElement("optgroup") };
+    og.KR.label = "🇰🇷 한국"; og.US.label = "🇺🇸 미국";
+    for (const t of [...new Set(allRows.map(r => r.ticker))]) og[mkt(t)].append(new Option(t, t));
+    sel.append(og.KR, og.US);
 
     render();
     meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${allRows[0]?.date ?? "-"}`;
@@ -203,7 +238,7 @@ function renderTable(rows) {
   const tbody = document.querySelector("#table tbody");
   tbody.innerHTML = rows.map(r => `<tr>
     <td data-label="날짜">${r.date}</td>
-    <td data-label="종목"><strong>${r.ticker}</strong></td>
+    <td data-label="종목"><strong>${r.market === "KR" ? "🇰🇷" : "🇺🇸"} ${r.ticker}</strong></td>
     <td data-label="점수" class="num">${badge(r.score)}</td>
     <td data-label="추세">${r.trend ?? ""}</td>
     <td data-label="종가" class="num">${r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""}</td>
@@ -212,21 +247,35 @@ function renderTable(rows) {
   </tr>`).join("");
 }
 
-// 종목별로 점수(좌축)와 종가(우축)를 시간순 라인차트로
+// 종목별로 점수(좌축)와 종가(우축)를 시간순 라인차트로, 시장(한국→미국)별로 묶어 표시
 function renderCharts(rows) {
   const byTicker = {};
   for (const r of rows) (byTicker[r.ticker] ||= []).push(r);
   const container = document.getElementById("charts");
   container.innerHTML = ""; // 재렌더 시 기존 차트 제거
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
 
-  for (const [ticker, list] of Object.entries(byTicker)) {
+  // 한국 먼저, 미국 다음 순으로 종목 정렬
+  const tickers = Object.keys(byTicker).sort((a, b) =>
+    (byTicker[a][0].market === "KR" ? 0 : 1) - (byTicker[b][0].market === "KR" ? 0 : 1));
+  let curMarket = null;
+
+  for (const ticker of tickers) {
+    const list = byTicker[ticker];
+    // 시장이 바뀌면 섹션 헤더 삽입
+    if (list[0].market !== curMarket) {
+      curMarket = list[0].market;
+      const h = document.createElement("div");
+      h.className = "mkt-head";
+      h.textContent = curMarket === "KR" ? "🇰🇷 한국" : "🇺🇸 미국";
+      container.appendChild(h);
+    }
     list.sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `<div class="title">${ticker}</div><canvas></canvas>`;
     container.appendChild(card);
 
-    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
     new Chart(card.querySelector("canvas"), {
       type: "line",
       data: {
