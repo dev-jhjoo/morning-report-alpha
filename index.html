@@ -6,27 +6,108 @@
   <title>Morning Report Alpha — 투자심리 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
-    h1 { font-size: 1.4rem; }
-    .muted { color: #888; font-size: .85rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: .9rem; }
-    th, td { border: 1px solid #ccc4; padding: .4rem .6rem; text-align: left; }
-    th { background: #8881; position: sticky; top: 0; }
-    td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .charts { display: grid; gap: 1.5rem; margin-top: 1.5rem; }
-    .card { border: 1px solid #ccc4; border-radius: 8px; padding: 1rem; }
-    .err { color: #c00; }
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f9; --fg: #1b1f24; --card: #fff; --line: #e3e6ea;
+      --muted: #6b7280; --accent: #4f46e5; --shadow: 0 1px 3px #0001, 0 8px 24px #0000000a;
+    }
+    /* 다크 팔레트 — OS가 dark면 자동 적용, 단 명시적 [data-theme=light]이면 무시 */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
+        --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
+      }
+    }
+    /* 수동 토글이 OS 설정을 덮어씀 */
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
+      --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      max-width: 1040px; margin: 0 auto; padding: clamp(1rem, 3vw, 2rem);
+      background: var(--bg); color: var(--fg); line-height: 1.5;
+    }
+    header { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; margin-bottom: .25rem; }
+    h1 { font-size: clamp(1.25rem, 4vw, 1.6rem); margin: 0; letter-spacing: -.02em; }
+    h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+    .muted { color: var(--muted); font-size: .85rem; }
+    .err { color: #ef4444; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: 1rem; }
+    .controls label { font-size: .85rem; color: var(--muted); }
+    select, .toggle {
+      font: inherit; font-size: .9rem; color: var(--fg); background: var(--card);
+      border: 1px solid var(--line); border-radius: 9px; padding: .45rem .7rem; cursor: pointer;
+    }
+    .toggle { margin-left: auto; line-height: 1; }
+    select:focus-visible, .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    .charts { display: grid; gap: 1rem; margin-top: 1.25rem;
+              grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 1rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .card > .title { font-weight: 600; font-size: .95rem; margin-bottom: .5rem; }
+    .card canvas { width: 100% !important; height: 220px !important; }
+
+    .table-card { padding: 0; overflow: hidden; }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    thead th {
+      text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--muted); padding: .7rem .9rem;
+      background: var(--card); border-bottom: 1px solid var(--line);
+      position: sticky; top: 0;
+    }
+    tbody td { padding: .7rem .9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td.insight { color: var(--muted); font-size: .85rem; max-width: 32ch; }
+
+    /* 점수 배지 — 색으로 강도 표현 */
+    .badge { display: inline-block; min-width: 2.2em; text-align: center; padding: .15em .5em;
+             border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums; color: #fff; }
+    .b-hot { background: #ef4444; } .b-warm { background: #f59e0b; }
+    .b-mid { background: #64748b; } .b-cool { background: #3b82f6; }
+
+    /* 모바일: 표를 행별 카드로 접기 */
+    @media (max-width: 640px) {
+      .table-card { background: transparent; border: 0; box-shadow: none; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      thead { display: none; }
+      tbody tr {
+        background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+        box-shadow: var(--shadow); padding: .35rem .25rem; margin-bottom: .85rem;
+      }
+      tbody td { border: 0; padding: .35rem .9rem; display: flex; justify-content: space-between; gap: 1rem; }
+      tbody td::before { content: attr(data-label); color: var(--muted); font-size: .78rem; font-weight: 600; }
+      td.num { text-align: right; }
+      td.insight { max-width: none; text-align: right; }
+    }
   </style>
 </head>
 <body>
-  <h1>🌅 투자심리 vs 주가 대시보드</h1>
-  <p class="muted" id="meta">불러오는 중…</p>
+  <header>
+    <h1>🌅 투자심리 vs 주가</h1>
+    <span class="muted" id="meta">불러오는 중…</span>
+  </header>
+  <div class="controls">
+    <label for="ticker">종목</label>
+    <select id="ticker"><option value="">전체</option></select>
+    <button class="toggle" id="theme" type="button" aria-label="테마 전환">🌓</button>
+  </div>
   <div class="charts" id="charts"></div>
-  <h2 style="font-size:1.1rem;margin-top:2rem">전체 데이터</h2>
-  <table id="table"><thead><tr>
-    <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>인사이트</th>
-  </tr></thead><tbody></tbody></table>
+  <h2>전체 데이터</h2>
+  <div class="card table-card">
+    <table id="table"><thead><tr>
+      <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>인사이트</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
 
 <script>
 // 따옴표(쉼표·이스케이프 포함) 처리하는 최소 CSV 파서 → 객체 배열
@@ -57,6 +138,30 @@ console.assert(
   "CSV 파서: 따옴표 내 쉼표 처리 실패"
 );
 
+// 테마 토글 (localStorage에 저장, OS 설정 덮어씀)
+const themeBtn = document.getElementById("theme");
+themeBtn.onclick = () => {
+  const isDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const cur = document.documentElement.getAttribute("data-theme") || (isDark ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  render(); // 차트 색이 테마 토큰을 쓰므로 다시 그림
+};
+const saved = localStorage.getItem("theme");
+if (saved) document.documentElement.setAttribute("data-theme", saved);
+
+let allRows = [];
+const sel = document.getElementById("ticker");
+sel.onchange = render;
+
+function render() {
+  const t = sel.value;
+  const rows = t ? allRows.filter(r => r.ticker === t) : allRows;
+  renderTable(rows);
+  renderCharts(rows);
+}
+
 async function load() {
   const meta = document.getElementById("meta");
   try {
@@ -72,25 +177,38 @@ async function load() {
     for (const p of prices) priceBy[p.date + "|" + p.ticker] = p;
 
     // 점수에 종가 결합
-    const rows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}) }));
-    rows.sort((a, b) => (a.date < b.date ? 1 : -1)); // 최신순
+    allRows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}) }));
+    allRows.sort((a, b) => (a.date < b.date ? 1 : -1)); // 최신순
 
-    renderTable(rows);
-    renderCharts(rows);
-    meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${rows[0]?.date ?? "-"}`;
+    // 셀렉트 박스 채우기
+    for (const t of [...new Set(allRows.map(r => r.ticker))])
+      sel.add(new Option(t, t));
+
+    render();
+    meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${allRows[0]?.date ?? "-"}`;
   } catch (e) {
     meta.innerHTML = `<span class="err">데이터 로드 실패: ${e}</span>`;
   }
 }
 
+// 점수 → 색 배지 (70+ 과열, 50+ 강세, 30+ 중립, 그 이하 약세)
+function badge(score) {
+  if (score === "" || score == null) return "";
+  const s = +score;
+  const cls = s >= 70 ? "b-hot" : s >= 50 ? "b-warm" : s >= 30 ? "b-mid" : "b-cool";
+  return `<span class="badge ${cls}">${s}</span>`;
+}
+
 function renderTable(rows) {
   const tbody = document.querySelector("#table tbody");
   tbody.innerHTML = rows.map(r => `<tr>
-    <td>${r.date}</td><td>${r.ticker}</td>
-    <td class="num">${r.score ?? ""}</td><td>${r.trend ?? ""}</td>
-    <td class="num">${r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""}</td>
-    <td>${r.priceDate ?? ""}</td>
-    <td>${r.insight ?? ""}</td>
+    <td data-label="날짜">${r.date}</td>
+    <td data-label="종목"><strong>${r.ticker}</strong></td>
+    <td data-label="점수" class="num">${badge(r.score)}</td>
+    <td data-label="추세">${r.trend ?? ""}</td>
+    <td data-label="종가" class="num">${r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""}</td>
+    <td data-label="종가일">${r.priceDate ?? ""}</td>
+    <td data-label="인사이트" class="insight">${r.insight ?? ""}</td>
   </tr>`).join("");
 }
 
@@ -99,25 +217,32 @@ function renderCharts(rows) {
   const byTicker = {};
   for (const r of rows) (byTicker[r.ticker] ||= []).push(r);
   const container = document.getElementById("charts");
+  container.innerHTML = ""; // 재렌더 시 기존 차트 제거
 
   for (const [ticker, list] of Object.entries(byTicker)) {
     list.sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `<strong>${ticker}</strong><canvas></canvas>`;
+    card.innerHTML = `<div class="title">${ticker}</div><canvas></canvas>`;
     container.appendChild(card);
 
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
     new Chart(card.querySelector("canvas"), {
       type: "line",
       data: {
         labels: list.map(r => r.date),
         datasets: [
-          { label: "투심 점수", data: list.map(r => r.score ? +r.score : null), yAxisID: "y", tension: .3 },
-          { label: "종가", data: list.map(r => r.price ? +r.price : null), yAxisID: "y1", tension: .3 },
+          { label: "투심 점수", data: list.map(r => r.score ? +r.score : null),
+            yAxisID: "y", tension: .3, borderColor: accent, backgroundColor: accent + "22",
+            pointRadius: 3, fill: true },
+          { label: "종가", data: list.map(r => r.price ? +r.price : null),
+            yAxisID: "y1", tension: .3, borderColor: "#f59e0b", pointRadius: 3 },
         ],
       },
       options: {
+        responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
+        plugins: { legend: { labels: { boxWidth: 12, usePointStyle: true } } },
         scales: {
           y: { type: "linear", position: "left", min: 0, max: 100, title: { display: true, text: "점수" } },
           y1: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "종가" } },
