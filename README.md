@@ -2,6 +2,8 @@
 
 한국·미국 시총 상위 20개 종목의 뉴스를 매일 수집해 Gemini AI로 **투자심리 점수**를 산출하고, CSV로 누적 저장·대시보드 시각화·텔레그램 발송까지 자동화하는 파이프라인입니다.
 
+> 🔗 **라이브 대시보드 → [investing.twojh.com](https://investing.twojh.com/)** (Cloudflare 배포)
+
 ## ✨ 주요 기능
 
 - **뉴스 수집** — Yahoo Finance RSS 기반 종목별 뉴스 크롤링
@@ -70,7 +72,9 @@ npm run start   # 전체 파이프라인 실행 (수집 → 분석 → 저장 �
 
 ## 📊 대시보드 사용법
 
-`index.html`을 브라우저에서 직접 열면 됩니다. `data/scores.csv`, `data/prices.csv`를 읽어 렌더링합니다.
+**라이브: [investing.twojh.com](https://investing.twojh.com/)** — 별도 설치 없이 바로 확인할 수 있습니다.
+
+로컬에서는 `index.html`을 브라우저에서 직접 열면 됩니다. `data/scores.csv`, `data/prices.csv`를 읽어 렌더링합니다.
 
 - 종목 셀렉트로 특정 종목 필터
 - 시장별(한국/미국) 그룹화
