@@ -51,18 +51,13 @@
                     border: 0; border-left: 1px solid var(--line); padding: .45rem .8rem; cursor: pointer; }
     .chips button:first-child { border-left: 0; }
     .chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-    /* 차트 섹션 헤더 (그리드 전체 폭 차지) */
-    .mkt-head { grid-column: 1 / -1; font-size: .9rem; font-weight: 600; color: var(--muted); margin: 1rem 0 -.25rem; }
-    .mkt-head:first-child { margin-top: 0; }
-
     .charts { display: grid; gap: 1rem; margin-top: 1.25rem;
               grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
     .card {
       background: var(--card); border: 1px solid var(--line); border-radius: 14px;
       padding: 1rem 1.1rem; box-shadow: var(--shadow);
     }
-    .card > .title { font-weight: 600; font-size: .95rem; margin-bottom: .5rem; }
-    .card canvas { width: 100% !important; height: 220px !important; }
+    .card canvas { width: 100% !important; height: 340px !important; }
 
     .table-card { padding: 0; overflow: hidden; }
     table { border-collapse: collapse; width: 100%; font-size: .9rem; }
@@ -120,12 +115,15 @@
       <button data-mkt="KR" aria-pressed="false">🇰🇷 한국</button>
       <button data-mkt="US" aria-pressed="false">🇺🇸 미국</button>
     </div>
+    <label for="date">날짜</label>
+    <select id="date"></select>
     <label for="ticker">종목</label>
     <select id="ticker"><option value="">전체</option></select>
     <button class="toggle" id="theme" type="button" aria-label="테마 전환">🌓</button>
   </div>
+  <h2 id="chartHead" hidden></h2>
   <div class="charts" id="charts"></div>
-  <h2>전체 데이터</h2>
+  <h2 id="tableHead">데이터</h2>
   <div class="card table-card">
     <table id="table"><thead><tr>
       <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>상세</th>
@@ -176,8 +174,11 @@ if (saved) document.documentElement.setAttribute("data-theme", saved);
 
 let allRows = [];
 let market = "all"; // 시장 필터: all | KR | US
+let date = "";      // 날짜 필터: "" = 전체
 const sel = document.getElementById("ticker");
+const selDate = document.getElementById("date");
 sel.onchange = render;
+selDate.onchange = () => { date = selDate.value; render(); };
 
 // 시장 필터 칩 클릭 → 필터 전환 + 종목 셀렉트 초기화(타 시장 종목 선택 충돌 방지)
 document.getElementById("markets").onclick = (e) => {
@@ -191,11 +192,16 @@ document.getElementById("markets").onclick = (e) => {
 
 function render() {
   const t = sel.value;
-  const rows = allRows.filter(r =>
+  const base = allRows.filter(r =>
     (market === "all" || r.market === market) && (!t || r.ticker === t)
   );
-  renderTable(rows);
-  renderCharts(rows);
+  // 종목 선택 시: 전체 히스토리 표 + 차트. 미선택 시: 날짜별 리스트, 차트 숨김.
+  const tableRows = (t || !date) ? base : base.filter(r => r.date === date);
+  renderTable(tableRows);
+  renderCharts(t ? base : []);
+  document.getElementById("tableHead").textContent =
+    t ? `📋 ${t} 전체 기록` : date ? `📋 ${date} 스냅샷` : "📋 전체 데이터";
+  selDate.disabled = !!t; // 종목 드릴다운 중엔 날짜 필터 비활성(전체 히스토리 표시)
 }
 
 async function load() {
@@ -227,6 +233,12 @@ async function load() {
     og.KR.label = "🇰🇷 한국"; og.US.label = "🇺🇸 미국";
     for (const t of [...new Set(allRows.map(r => r.ticker))]) og[mkt(t)].append(new Option(t, t));
     sel.append(og.KR, og.US);
+
+    // 날짜 셀렉트: 최신일 우선. 기본값 = 최신일(백오피스 스냅샷 뷰)
+    const dates = [...new Set(allRows.map(r => r.date))].sort().reverse();
+    selDate.append(new Option("전체 날짜", ""));
+    for (const d of dates) selDate.append(new Option(d, d));
+    date = selDate.value = dates[0] ?? "";
 
     render();
     meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${allRows[0]?.date ?? "-"}`;
@@ -268,58 +280,45 @@ function detailCell(r) {
   return `<details><summary>보기</summary>${sum}${ins}</details>`;
 }
 
-// 종목별로 점수(좌축)와 종가(우축)를 시간순 라인차트로, 시장(한국→미국)별로 묶어 표시
+// 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 라인차트로. rows 비면 차트 영역 숨김.
 function renderCharts(rows) {
-  const byTicker = {};
-  for (const r of rows) (byTicker[r.ticker] ||= []).push(r);
+  const head = document.getElementById("chartHead");
   const container = document.getElementById("charts");
   container.innerHTML = ""; // 재렌더 시 기존 차트 제거
+  if (!rows.length) { head.hidden = true; return; }
+
+  head.hidden = false;
+  head.textContent = `📈 ${rows[0].ticker} 점수 vs 종가`;
   const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  const list = [...rows].sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
 
-  // 한국 먼저, 미국 다음 순으로 종목 정렬
-  const tickers = Object.keys(byTicker).sort((a, b) =>
-    (byTicker[a][0].market === "KR" ? 0 : 1) - (byTicker[b][0].market === "KR" ? 0 : 1));
-  let curMarket = null;
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<canvas></canvas>`;
+  container.appendChild(card);
 
-  for (const ticker of tickers) {
-    const list = byTicker[ticker];
-    // 시장이 바뀌면 섹션 헤더 삽입
-    if (list[0].market !== curMarket) {
-      curMarket = list[0].market;
-      const h = document.createElement("div");
-      h.className = "mkt-head";
-      h.textContent = curMarket === "KR" ? "🇰🇷 한국" : "🇺🇸 미국";
-      container.appendChild(h);
-    }
-    list.sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<div class="title">${ticker}</div><canvas></canvas>`;
-    container.appendChild(card);
-
-    new Chart(card.querySelector("canvas"), {
-      type: "line",
-      data: {
-        labels: list.map(r => r.date),
-        datasets: [
-          { label: "투심 점수", data: list.map(r => r.score ? +r.score : null),
-            yAxisID: "y", tension: .3, borderColor: accent, backgroundColor: accent + "22",
-            pointRadius: 3, fill: true },
-          { label: "종가", data: list.map(r => r.price ? +r.price : null),
-            yAxisID: "y1", tension: .3, borderColor: "#f59e0b", pointRadius: 3 },
-        ],
+  new Chart(card.querySelector("canvas"), {
+    type: "line",
+    data: {
+      labels: list.map(r => r.date),
+      datasets: [
+        { label: "투심 점수", data: list.map(r => r.score ? +r.score : null),
+          yAxisID: "y", tension: .3, borderColor: accent, backgroundColor: accent + "22",
+          pointRadius: 3, fill: true },
+        { label: "종가", data: list.map(r => r.price ? +r.price : null),
+          yAxisID: "y1", tension: .3, borderColor: "#f59e0b", pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: { legend: { labels: { boxWidth: 12, usePointStyle: true } } },
+      scales: {
+        y: { type: "linear", position: "left", min: 0, max: 100, title: { display: true, text: "점수" } },
+        y1: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "종가" } },
       },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: { legend: { labels: { boxWidth: 12, usePointStyle: true } } },
-        scales: {
-          y: { type: "linear", position: "left", min: 0, max: 100, title: { display: true, text: "점수" } },
-          y1: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "종가" } },
-        },
-      },
-    });
-  }
+    },
+  });
 }
 
 load();
