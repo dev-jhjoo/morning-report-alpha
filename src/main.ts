@@ -37,6 +37,21 @@ const TARGET_TICKERS: Record<string, string> = {
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+// 4096자 한도 아래로 줄 경계에서 분할. 각 줄의 HTML 태그(<b>..</b> 등)는 줄 안에서 닫히므로 경계 분할이 안전.
+function splitForTelegram(message: string, limit = 3900): string[] {
+  const chunks: string[] = [];
+  let cur = "";
+  for (const line of message.split("\n")) {
+    if (cur && cur.length + line.length + 1 > limit) {
+      chunks.push(cur);
+      cur = "";
+    }
+    cur += (cur ? "\n" : "") + line;
+  }
+  if (cur) chunks.push(cur);
+  return chunks;
+}
+
 async function sendTelegramMessage(message: string) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     console.error("❌ 텔레그램 환경 변수가 없습니다.");
@@ -44,20 +59,34 @@ async function sendTelegramMessage(message: string) {
   }
 
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-  try {
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-        parse_mode: "HTML", // HTML 태그를 사용하여 예쁘게 꾸미기 위함
-      }),
-    });
-    console.log("✅ 텔레그램 메시지 발송 완료!");
-  } catch (error) {
-    console.error("❌ 텔레그램 발송 실패:", error);
+  // 텔레그램 단일 메시지 한도는 4096자 → 줄 경계로 안전하게 나눠 여러 번 발송(데이터 손실 없음)
+  for (const chunk of splitForTelegram(message)) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: chunk,
+          parse_mode: "HTML", // HTML 태그를 사용하여 예쁘게 꾸미기 위함
+        }),
+      });
+      // fetch는 네트워크 오류만 throw → 텔레그램의 400/403({ok:false})은 여기서 직접 확인해야 함
+      const body: any = await res.json().catch(() => ({}));
+      if (!res.ok || !body.ok) {
+        console.error(
+          `❌ 텔레그램 발송 실패 (HTTP ${res.status}): ${
+            body.description ?? "(no description)"
+          }`
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("❌ 텔레그램 발송 실패:", error);
+      return;
+    }
   }
+  console.log("✅ 텔레그램 메시지 발송 완료!");
 }
 
 async function runMorningReport() {
@@ -100,12 +129,9 @@ async function runMorningReport() {
       const icon =
         analysis.score >= 70 ? "🔥" : analysis.score <= 30 ? "❄️" : "📊";
 
-      // 4. 리포트 본문 조합
+      // 4. 리포트 본문 조합 (점수·종가·insight만; summary 3줄은 scores.csv에만 저장)
       finalReport += `<b>[${ticker}]</b> ${icon} 투심: <b>${analysis.score}점 (${analysis.trend})</b>\n`;
       finalReport += priceLine;
-      analysis.summary.forEach((line, idx) => {
-        finalReport += `  ${idx + 1}. ${line}\n`;
-      });
       finalReport += `  💡 <i>${analysis.insight}</i>\n\n`;
     } else {
       finalReport += `<b>[${ticker}]</b> ❌ 분석 데이터를 가져오지 못했습니다.\n${priceLine}\n`;
