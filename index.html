@@ -76,7 +76,15 @@
     tbody tr:last-child td { border-bottom: 0; }
     tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
     td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    td.insight { color: var(--muted); font-size: .85rem; max-width: 32ch; }
+    /* 상세 토글: summary(핵심 팩트) + insight를 접었다 폈다 */
+    td.detail { max-width: 38ch; font-size: .85rem; }
+    td.detail summary { cursor: pointer; color: var(--accent); list-style: none; user-select: none; }
+    td.detail summary::-webkit-details-marker { display: none; }
+    td.detail summary::before { content: "▸ "; }
+    td.detail details[open] summary::before { content: "▾ "; }
+    td.detail ul.sum { margin: .45rem 0 .3rem; padding-left: 1.1rem; }
+    td.detail ul.sum li { margin: .1rem 0; }
+    td.detail p.ins { margin: .3rem 0 .1rem; color: var(--muted); }
 
     /* 점수 배지 — 색으로 강도 표현 */
     .badge { display: inline-block; min-width: 2.2em; text-align: center; padding: .15em .5em;
@@ -96,7 +104,8 @@
       tbody td { border: 0; padding: .35rem .9rem; display: flex; justify-content: space-between; gap: 1rem; }
       tbody td::before { content: attr(data-label); color: var(--muted); font-size: .78rem; font-weight: 600; }
       td.num { text-align: right; }
-      td.insight { max-width: none; text-align: right; }
+      td.detail { max-width: none; }
+      td.detail summary { text-align: left; }
     }
   </style>
 </head>
@@ -119,7 +128,7 @@
   <h2>전체 데이터</h2>
   <div class="card table-card">
     <table id="table"><thead><tr>
-      <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>인사이트</th>
+      <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>상세</th>
     </tr></thead><tbody></tbody></table>
   </div>
 
@@ -243,8 +252,20 @@ function renderTable(rows) {
     <td data-label="추세">${r.trend ?? ""}</td>
     <td data-label="종가" class="num">${r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""}</td>
     <td data-label="종가일">${r.priceDate ?? ""}</td>
-    <td data-label="인사이트" class="insight">${r.insight ?? ""}</td>
+    <td data-label="상세" class="detail">${detailCell(r)}</td>
   </tr>`).join("");
+}
+
+// summary(줄바꿈으로 합쳐진 핵심 팩트)와 insight를 native <details>로 토글. 둘 다 없으면 빈 셀.
+function detailCell(r) {
+  const summary = (r.summary ?? "").trim();
+  const insight = (r.insight ?? "").trim();
+  if (!summary && !insight) return "";
+  const sum = summary
+    ? `<ul class="sum">${summary.split("\n").map(l => `<li>${l}</li>`).join("")}</ul>`
+    : "";
+  const ins = insight ? `<p class="ins">💡 ${insight}</p>` : "";
+  return `<details><summary>보기</summary>${sum}${ins}</details>`;
 }
 
 // 종목별로 점수(좌축)와 종가(우축)를 시간순 라인차트로, 시장(한국→미국)별로 묶어 표시

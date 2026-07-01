@@ -5,7 +5,7 @@ import type { PriceData } from "./price.js";
 
 const DATA_DIR = "data";
 const CSV_PATH = path.join(DATA_DIR, "scores.csv");
-const HEADER = "date,ticker,score,trend,insight\n";
+const HEADER = "date,ticker,score,trend,insight,summary\n";
 const PRICE_PATH = path.join(DATA_DIR, "prices.csv");
 const PRICE_HEADER = "date,ticker,symbol,price,priceDate,currency\n";
 
@@ -27,7 +27,15 @@ function appendRow(file: string, header: string, fields: (string | number)[]) {
  * @param date YYYY-MM-DD (Asia/Seoul 기준)
  */
 export function appendScore(date: string, ticker: string, a: AnalysisResult) {
-  appendRow(CSV_PATH, HEADER, [date, ticker, a.score, a.trend, a.insight]);
+  // summary(string[])는 줄바꿈으로 합쳐 한 셀에 저장 → 추후 문장 단위 NLP 분석에 그대로 활용
+  appendRow(CSV_PATH, HEADER, [
+    date,
+    ticker,
+    a.score,
+    a.trend,
+    a.insight,
+    a.summary.join("\n"),
+  ]);
 }
 
 /**
@@ -58,12 +66,13 @@ if (isMain) {
   appendScore("2026-06-30", "테스트", {
     score: 77,
     trend: "분할 매수",
-    summary: ["a"],
+    summary: ["첫 줄", "둘째 줄"],
     insight: '쉼표, "따옴표" 포함 인사이트',
   });
   const after = fs.readFileSync(tmp, "utf8");
   const added = after.slice(before.length);
   console.assert(added.includes('"쉼표, ""따옴표"" 포함 인사이트"'), "이스케이프 실패");
+  console.assert(added.includes('"첫 줄\n둘째 줄"'), "summary 저장 실패");
   console.assert(after.startsWith(HEADER), "헤더 누락");
   console.log("self-check OK:", JSON.stringify(added));
 }
