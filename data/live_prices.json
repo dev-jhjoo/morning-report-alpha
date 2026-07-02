@@ -1,0 +1,125 @@
+{
+  "ts": "2026-07-02T00:27:03.705Z",
+  "prices": {
+    "005930.KS": {
+      "price": 293500,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "000660.KS": {
+      "price": 2364000,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "373220.KS": {
+      "price": 341500,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "207940.KS": {
+      "price": 1368000,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "005380.KS": {
+      "price": 462500,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "000270.KS": {
+      "price": 139500,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "068270.KS": {
+      "price": 169900,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "005490.KS": {
+      "price": 304000,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "105560.KS": {
+      "price": 160300,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "006400.KS": {
+      "price": 464500,
+      "change": null,
+      "changePct": null,
+      "currency": "KRW"
+    },
+    "AAPL": {
+      "price": 294.38,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "NVDA": {
+      "price": 197.58,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "MSFT": {
+      "price": 384.28,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "AMZN": {
+      "price": 241.7,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "GOOGL": {
+      "price": 361.21,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "META": {
+      "price": 612.91,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "TSLA": {
+      "price": 425.3,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "AVGO": {
+      "price": 369.34,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "BRK-B": {
+      "price": 499.74,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    },
+    "JPM": {
+      "price": 334.07,
+      "change": null,
+      "changePct": null,
+      "currency": "USD"
+    }
+  }
+}
