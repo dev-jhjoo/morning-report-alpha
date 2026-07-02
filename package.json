@@ -6,8 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npx tsx src/main.ts",
-    "analyze": "npx tsx src/analyzer.ts",
-    "config": "node scripts/gen-config.mjs"
+    "analyze": "npx tsx src/analyzer.ts"
   },
   "repository": {
     "type": "git",

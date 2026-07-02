@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Morning Report Alpha — 투자심리 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <script src="./data/config.js" onerror="void 0"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -218,10 +217,12 @@ function render() {
 async function load() {
   const meta = document.getElementById("meta");
   try {
-    const [scoresT, pricesT] = await Promise.all([
+    const [scoresT, pricesT, liveJ] = await Promise.all([
       fetch("./data/scores.csv").then(r => r.text()),
       fetch("./data/prices.csv").then(r => r.text()),
+      fetch("./data/live_prices.json").then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
+    window._livePrices = liveJ?.prices ?? {}; // { "005930.KS": { price, currency } }
     const scores = parseCSV(scoresT);
     const prices = parseCSV(pricesT);
 
@@ -291,11 +292,6 @@ function detailCell(r) {
   return `<details><summary>보기</summary>${sum}${ins}</details>`;
 }
 
-let _liveAbort = null; // 종목 전환 시 이전 fetch 무시용
-
-// config.js (data/ 폴더, gitignore) 또는 localStorage에서 토큰 로드
-const FINNHUB_TOKEN = window.FINNHUB_TOKEN || localStorage.getItem("finnhub_token") || "";
-
 // ponytail: DST 미적용, ET≈UTC-5 고정.
 function isMarketOpen(mkt) {
   const now = new Date();
@@ -315,64 +311,40 @@ function marketBadge(open) {
     : `<span class="market-badge market-closed">개장 전</span>`;
 }
 
-// Yahoo .KS 심볼 → Finnhub KRX: 형식 변환
-function toFinnhubSym(yahooSym) {
-  if (!yahooSym) return null;
-  return yahooSym.endsWith(".KS")
-    ? "KRX:" + yahooSym.slice(0, -3)
-    : yahooSym;
-}
-
 function renderPriceCard(rows) {
   const el = document.getElementById("priceCard");
-  if (_liveAbort) { _liveAbort = false; }
   if (!rows.length) { el.hidden = true; return; }
   const latest = [...rows].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
   if (!latest.price) { el.hidden = true; return; }
 
   const flag = latest.market === "KR" ? "🇰🇷" : "🇺🇸";
-  const csvPrice = Number(latest.price).toLocaleString() + " " + (latest.currency || "");
   const open = isMarketOpen(latest.market);
+  const live = window._livePrices?.[latest.symbol];
+  const price = live
+    ? Number(live.price).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (live.currency || "")
+    : Number(latest.price).toLocaleString() + " " + (latest.currency || "");
+  const label = live ? "실시간 (15분 지연)" : `기준일 ${latest.priceDate ?? latest.date}`;
 
-  const fsym = toFinnhubSym(latest.symbol);
-  const canFetch = FINNHUB_TOKEN && fsym;
-
-  el.hidden = false;
-  el.innerHTML = `<div class="card price-card">
-    <div>
-      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
-        <strong>${flag} ${latest.ticker}</strong>
-        <span id="mktBadge" class="market-badge market-closed" style="opacity:.5">${canFetch ? "조회 중…" : (open ? "개장 중" : "개장 전")}</span>
-      </div>
-      <div class="price-main" id="livePrice">${csvPrice}</div>
-      <div class="price-label" id="priceLabel">기준일 ${latest.priceDate ?? latest.date}</div>
-    </div>
-  </div>`;
-
-  if (!canFetch) {
-    document.getElementById("mktBadge").outerHTML = marketBadge(open);
-    return;
+  let changeHtml = "";
+  if (live?.change != null && live?.changePct != null) {
+    const up = live.change >= 0;
+    const sign = up ? "+" : "";
+    const color = up ? "#22c55e" : "#ef4444";
+    const chg = Number(live.change).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const pct = Number(live.changePct).toFixed(2);
+    changeHtml = `<span style="font-size:1rem;font-weight:600;color:${color}">${sign}${chg} (${sign}${pct}%)</span>`;
   }
 
-  const token = {};
-  _liveAbort = token;
-
-  // ponytail: Finnhub 무료 플랜 = US만 지원. KR(KRX:) 종목은 0 반환 → CSV 폴백.
-  fetch(`https://finnhub.io/api/v1/quote?symbol=${fsym}&token=${FINNHUB_TOKEN}`)
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(d => {
-      if (_liveAbort !== token) return;
-      if (!d.c || d.c === 0) throw new Error("no data"); // KR 미지원 or 빈 응답
-      const price = Number(d.c).toLocaleString(undefined, { maximumFractionDigits: 2 });
-      document.getElementById("mktBadge").outerHTML = marketBadge(open);
-      document.getElementById("livePrice").textContent = `${price} ${latest.currency || ""}`;
-      document.getElementById("priceLabel").textContent = "실시간";
-    })
-    .catch(() => {
-      if (_liveAbort !== token) return;
-      document.getElementById("mktBadge").outerHTML = marketBadge(open);
-      document.getElementById("priceLabel").textContent = `최종 종가 기준일 ${latest.priceDate ?? latest.date}`;
-    });
+  el.hidden = false;
+  el.innerHTML = `<div class="card price-card"><div>
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
+      <strong>${flag} ${latest.ticker}</strong>${marketBadge(open)}
+    </div>
+    <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap">
+      <div class="price-main">${price}</div>${changeHtml}
+    </div>
+    <div class="price-label">${label}</div>
+  </div></div>`;
 }
 
 // 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 라인차트로. rows 비면 차트 영역 숨김.
