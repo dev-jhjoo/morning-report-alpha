@@ -1,124 +1,124 @@
 {
-  "ts": "2026-07-02T17:08:52.590Z",
+  "ts": "2026-07-02T18:55:24.957Z",
   "prices": {
     "005930.KS": {
       "price": 286000,
-      "change": -48000,
-      "changePct": -14.3713,
+      "change": -28500,
+      "changePct": -9.062,
       "currency": "KRW"
     },
     "000660.KS": {
       "price": 2187000,
-      "change": -463000,
-      "changePct": -17.4717,
+      "change": -373000,
+      "changePct": -14.5703,
       "currency": "KRW"
     },
     "373220.KS": {
       "price": 354000,
-      "change": -8000,
-      "changePct": -2.2099,
+      "change": 6000,
+      "changePct": 1.7241,
       "currency": "KRW"
     },
     "207940.KS": {
       "price": 1406000,
-      "change": 15000,
-      "changePct": 1.0784,
+      "change": 10000,
+      "changePct": 0.7163,
       "currency": "KRW"
     },
     "005380.KS": {
       "price": 482000,
-      "change": -13000,
-      "changePct": -2.6263,
+      "change": -5500,
+      "changePct": -1.1282,
       "currency": "KRW"
     },
     "000270.KS": {
       "price": 145200,
-      "change": 7200,
-      "changePct": 5.2174,
+      "change": 3700,
+      "changePct": 2.6148,
       "currency": "KRW"
     },
     "068270.KS": {
       "price": 176600,
-      "change": 3300,
-      "changePct": 1.9042,
+      "change": 2100,
+      "changePct": 1.2034,
       "currency": "KRW"
     },
     "005490.KS": {
       "price": 317500,
-      "change": 500,
-      "changePct": 0.1577,
+      "change": 2500,
+      "changePct": 0.7937,
       "currency": "KRW"
     },
     "105560.KS": {
       "price": 165000,
-      "change": 6000,
-      "changePct": 3.7736,
+      "change": 6500,
+      "changePct": 4.1009,
       "currency": "KRW"
     },
     "006400.KS": {
       "price": 470500,
-      "change": -16500,
-      "changePct": -3.3881,
+      "change": -20500,
+      "changePct": -4.1752,
       "currency": "KRW"
     },
     "AAPL": {
-      "price": 307.973,
-      "change": 13.593,
-      "changePct": 4.6175,
+      "price": 307.74,
+      "change": 13.36,
+      "changePct": 4.5384,
       "currency": "USD"
     },
     "NVDA": {
-      "price": 193.36,
-      "change": -4.22,
-      "changePct": -2.1358,
+      "price": 193.54,
+      "change": -4.04,
+      "changePct": -2.0447,
       "currency": "USD"
     },
     "MSFT": {
-      "price": 389.995,
-      "change": 5.715,
-      "changePct": 1.4872,
+      "price": 390.95,
+      "change": 6.67,
+      "changePct": 1.7357,
       "currency": "USD"
     },
     "AMZN": {
-      "price": 244.28,
-      "change": 2.58,
-      "changePct": 1.0674,
+      "price": 243.44,
+      "change": 1.74,
+      "changePct": 0.7199,
       "currency": "USD"
     },
     "GOOGL": {
-      "price": 353.77,
-      "change": -7.44,
-      "changePct": -2.0597,
+      "price": 357.66,
+      "change": -3.55,
+      "changePct": -0.9828,
       "currency": "USD"
     },
     "META": {
-      "price": 585,
-      "change": -27.91,
-      "changePct": -4.5537,
+      "price": 581.86,
+      "change": -31.05,
+      "changePct": -5.066,
       "currency": "USD"
     },
     "TSLA": {
-      "price": 392.02,
-      "change": -33.28,
-      "changePct": -7.8251,
+      "price": 391.629,
+      "change": -33.671,
+      "changePct": -7.917,
       "currency": "USD"
     },
     "AVGO": {
-      "price": 358.865,
-      "change": -10.475,
-      "changePct": -2.8361,
+      "price": 359,
+      "change": -10.34,
+      "changePct": -2.7996,
       "currency": "USD"
     },
     "BRK-B": {
-      "price": 505.87,
-      "change": 6.13,
-      "changePct": 1.2266,
+      "price": 506.05,
+      "change": 6.31,
+      "changePct": 1.2627,
       "currency": "USD"
     },
     "JPM": {
-      "price": 333.73,
-      "change": -0.34,
-      "changePct": -0.1018,
+      "price": 334.275,
+      "change": 0.205,
+      "changePct": 0.0614,
       "currency": "USD"
     }
   }
