@@ -218,10 +218,12 @@ function render() {
 async function load() {
   const meta = document.getElementById("meta");
   try {
-    const [scoresT, pricesT] = await Promise.all([
+    const [scoresT, pricesT, liveJ] = await Promise.all([
       fetch("./data/scores.csv").then(r => r.text()),
       fetch("./data/prices.csv").then(r => r.text()),
+      fetch("./data/live_prices.json").then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
+    window._livePrices = liveJ?.prices ?? {}; // { "005930.KS": { price, currency } }
     const scores = parseCSV(scoresT);
     const prices = parseCSV(pricesT);
 
@@ -334,8 +336,24 @@ function renderPriceCard(rows) {
   const csvPrice = Number(latest.price).toLocaleString() + " " + (latest.currency || "");
   const open = isMarketOpen(latest.market);
 
+  // KR: live_prices.json (Actions 15분 갱신) 우선
+  const liveKR = latest.market === "KR" ? (window._livePrices?.[latest.symbol]) : null;
+  if (liveKR) {
+    const price = Number(liveKR.price).toLocaleString();
+    el.hidden = false;
+    el.innerHTML = `<div class="card price-card"><div>
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
+        <strong>${flag} ${latest.ticker}</strong>${marketBadge(open)}
+      </div>
+      <div class="price-main">${price} ${liveKR.currency || ""}</div>
+      <div class="price-label">실시간 (15분 지연)</div>
+    </div></div>`;
+    return;
+  }
+
+  // US: Finnhub 실시간
   const fsym = toFinnhubSym(latest.symbol);
-  const canFetch = FINNHUB_TOKEN && fsym;
+  const canFetch = FINNHUB_TOKEN && fsym && latest.market === "US";
 
   el.hidden = false;
   el.innerHTML = `<div class="card price-card">
@@ -357,12 +375,12 @@ function renderPriceCard(rows) {
   const token = {};
   _liveAbort = token;
 
-  // ponytail: Finnhub 무료 플랜 = US만 지원. KR(KRX:) 종목은 0 반환 → CSV 폴백.
+  // ponytail: Finnhub 무료 플랜 = US만 지원.
   fetch(`https://finnhub.io/api/v1/quote?symbol=${fsym}&token=${FINNHUB_TOKEN}`)
     .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(d => {
       if (_liveAbort !== token) return;
-      if (!d.c || d.c === 0) throw new Error("no data"); // KR 미지원 or 빈 응답
+      if (!d.c || d.c === 0) throw new Error("no data");
       const price = Number(d.c).toLocaleString(undefined, { maximumFractionDigits: 2 });
       document.getElementById("mktBadge").outerHTML = marketBadge(open);
       document.getElementById("livePrice").textContent = `${price} ${latest.currency || ""}`;
