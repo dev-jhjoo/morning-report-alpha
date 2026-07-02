@@ -1,342 +1,654 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Morning Report Alpha — 투자심리 대시보드</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f6f7f9; --fg: #1b1f24; --card: #fff; --line: #e3e6ea;
-      --muted: #6b7280; --accent: #4f46e5; --shadow: 0 1px 3px #0001, 0 8px 24px #0000000a;
-    }
-    /* 다크 팔레트 — OS가 dark면 자동 적용, 단 명시적 [data-theme=light]이면 무시 */
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
-        --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Morning Report Alpha — 투자심리 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7f9;
+        --fg: #1b1f24;
+        --card: #fff;
+        --line: #e3e6ea;
+        --muted: #6b7280;
+        --accent: #4f46e5;
+        --shadow: 0 1px 3px #0001, 0 8px 24px #0000000a;
       }
-    }
-    /* 수동 토글이 OS 설정을 덮어씀 */
-    :root[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #0d1117; --fg: #e6edf3; --card: #161b22; --line: #2a2f37;
-      --muted: #9198a1; --accent: #818cf8; --shadow: 0 1px 3px #0006;
-    }
-    :root[data-theme="light"] { color-scheme: light; }
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      max-width: 1040px; margin: 0 auto; padding: clamp(1rem, 3vw, 2rem);
-      background: var(--bg); color: var(--fg); line-height: 1.5;
-    }
-    header { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; margin-bottom: .25rem; }
-    h1 { font-size: clamp(1.25rem, 4vw, 1.6rem); margin: 0; letter-spacing: -.02em; }
-    h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
-    .muted { color: var(--muted); font-size: .85rem; }
-    .err { color: #ef4444; }
-
-    .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-top: 1rem; }
-    .controls label { font-size: .85rem; color: var(--muted); }
-    select, .toggle {
-      font: inherit; font-size: .9rem; color: var(--fg); background: var(--card);
-      border: 1px solid var(--line); border-radius: 9px; padding: .45rem .7rem; cursor: pointer;
-    }
-    .toggle { margin-left: auto; line-height: 1; }
-    select:focus-visible, .toggle:focus-visible, .chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-    /* 시장 필터 세그먼트 */
-    .chips { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
-    .chips button { font: inherit; font-size: .85rem; color: var(--fg); background: var(--card);
-                    border: 0; border-left: 1px solid var(--line); padding: .45rem .8rem; cursor: pointer; }
-    .chips button:first-child { border-left: 0; }
-    .chips button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-    .charts { display: grid; gap: 1rem; margin-top: 1.25rem;
-              grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-    .card {
-      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-      padding: 1rem 1.1rem; box-shadow: var(--shadow);
-    }
-    .card canvas { width: 100% !important; height: 340px !important; }
-
-    .table-card { padding: 0; overflow: hidden; }
-    table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-    thead th {
-      text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase;
-      letter-spacing: .04em; color: var(--muted); padding: .7rem .9rem;
-      background: var(--card); border-bottom: 1px solid var(--line);
-      position: sticky; top: 0;
-    }
-    tbody td { padding: .7rem .9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-    tbody tr:last-child td { border-bottom: 0; }
-    tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-    td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    /* 상세 토글: summary(핵심 팩트) + insight를 접었다 폈다 */
-    td.detail { max-width: 38ch; font-size: .85rem; }
-    td.detail summary { cursor: pointer; color: var(--accent); list-style: none; user-select: none; }
-    td.detail summary::-webkit-details-marker { display: none; }
-    td.detail summary::before { content: "▸ "; }
-    td.detail details[open] summary::before { content: "▾ "; }
-    td.detail ul.sum { margin: .45rem 0 .3rem; padding-left: 1.1rem; }
-    td.detail ul.sum li { margin: .1rem 0; }
-    td.detail p.ins { margin: .3rem 0 .1rem; color: var(--muted); }
-
-    /* 현재 시세 카드 */
-    .price-card { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
-    .price-card .price-main { font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-    .price-card .price-label { font-size: .8rem; color: var(--muted); margin-top: .15rem; }
-    .market-badge { display: inline-block; padding: .2em .7em; border-radius: 999px; font-size: .78rem; font-weight: 600; }
-    .market-open  { background: #22c55e22; color: #16a34a; border: 1px solid #22c55e55; }
-    .market-closed{ background: #6b728022; color: var(--muted); border: 1px solid var(--line); }
-
-    /* 점수 배지 — 색으로 강도 표현 */
-    .badge { display: inline-block; min-width: 2.2em; text-align: center; padding: .15em .5em;
-             border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums; color: #fff; }
-    .b-hot { background: #ef4444; } .b-warm { background: #f59e0b; }
-    .b-mid { background: #64748b; } .b-cool { background: #3b82f6; }
-
-    /* 모바일: 표를 행별 카드로 접기 */
-    @media (max-width: 640px) {
-      .table-card { background: transparent; border: 0; box-shadow: none; }
-      table, tbody, tr, td { display: block; width: 100%; }
-      thead { display: none; }
-      tbody tr {
-        background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-        box-shadow: var(--shadow); padding: .35rem .25rem; margin-bottom: .85rem;
+      /* 다크 팔레트 — OS가 dark면 자동 적용, 단 명시적 [data-theme=light]이면 무시 */
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0d1117;
+          --fg: #e6edf3;
+          --card: #161b22;
+          --line: #2a2f37;
+          --muted: #9198a1;
+          --accent: #818cf8;
+          --shadow: 0 1px 3px #0006;
+        }
       }
-      tbody td { border: 0; padding: .35rem .9rem; display: flex; justify-content: space-between; gap: 1rem; }
-      tbody td::before { content: attr(data-label); color: var(--muted); font-size: .78rem; font-weight: 600; }
-      td.num { text-align: right; }
-      td.detail { max-width: none; }
-      td.detail summary { text-align: left; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>🌅 투자심리 vs 주가</h1>
-    <span class="muted" id="meta">불러오는 중…</span>
-  </header>
-  <div class="controls">
-    <div class="chips" id="markets" role="group" aria-label="시장 필터">
-      <button data-mkt="all" aria-pressed="true">전체</button>
-      <button data-mkt="KR" aria-pressed="false">🇰🇷 한국</button>
-      <button data-mkt="US" aria-pressed="false">🇺🇸 미국</button>
+      /* 수동 토글이 OS 설정을 덮어씀 */
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --fg: #e6edf3;
+        --card: #161b22;
+        --line: #2a2f37;
+        --muted: #9198a1;
+        --accent: #818cf8;
+        --shadow: 0 1px 3px #0006;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: clamp(1rem, 3vw, 2rem);
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.5;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.5rem 1rem;
+        margin-bottom: 0.25rem;
+      }
+      h1 {
+        font-size: clamp(1.25rem, 4vw, 1.6rem);
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2rem 0 0.5rem;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .err {
+        color: #ef4444;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        margin-top: 1rem;
+      }
+      .controls label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      select,
+      .toggle {
+        font: inherit;
+        font-size: 0.9rem;
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 0.45rem 0.7rem;
+        cursor: pointer;
+      }
+      .toggle {
+        margin-left: auto;
+        line-height: 1;
+      }
+      select:focus-visible,
+      .toggle:focus-visible,
+      .chips button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      /* 시장 필터 세그먼트 */
+      .chips {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        overflow: hidden;
+      }
+      .chips button {
+        font: inherit;
+        font-size: 0.85rem;
+        color: var(--fg);
+        background: var(--card);
+        border: 0;
+        border-left: 1px solid var(--line);
+        padding: 0.45rem 0.8rem;
+        cursor: pointer;
+      }
+      .chips button:first-child {
+        border-left: 0;
+      }
+      .chips button[aria-pressed="true"] {
+        background: var(--accent);
+        color: #fff;
+      }
+      .charts {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        box-shadow: var(--shadow);
+      }
+      .card canvas {
+        width: 100% !important;
+        height: 340px !important;
+      }
+
+      .table-card {
+        padding: 0;
+        overflow: hidden;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.9rem;
+      }
+      thead th {
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        padding: 0.7rem 0.9rem;
+        background: var(--card);
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+      }
+      tbody td {
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover {
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+      }
+      td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      /* 상세 토글: summary(핵심 팩트) + insight를 접었다 폈다 */
+      td.detail {
+        max-width: 38ch;
+        font-size: 0.85rem;
+      }
+      td.detail summary {
+        cursor: pointer;
+        color: var(--accent);
+        list-style: none;
+        user-select: none;
+      }
+      td.detail summary::-webkit-details-marker {
+        display: none;
+      }
+      td.detail summary::before {
+        content: "▸ ";
+      }
+      td.detail details[open] summary::before {
+        content: "▾ ";
+      }
+      td.detail ul.sum {
+        margin: 0.45rem 0 0.3rem;
+        padding-left: 1.1rem;
+      }
+      td.detail ul.sum li {
+        margin: 0.1rem 0;
+      }
+      td.detail p.ins {
+        margin: 0.3rem 0 0.1rem;
+        color: var(--muted);
+      }
+
+      /* 현재 시세 카드 */
+      .price-card {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        flex-wrap: wrap;
+      }
+      .price-card .price-main {
+        font-size: 1.9rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+      }
+      .price-card .price-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 0.15rem;
+      }
+      .market-badge {
+        display: inline-block;
+        padding: 0.2em 0.7em;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .market-open {
+        background: #22c55e22;
+        color: #16a34a;
+        border: 1px solid #22c55e55;
+      }
+      .market-closed {
+        background: #6b728022;
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+
+      /* 점수 배지 — 색으로 강도 표현 */
+      .badge {
+        display: inline-block;
+        min-width: 2.2em;
+        text-align: center;
+        padding: 0.15em 0.5em;
+        border-radius: 999px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #fff;
+      }
+      .b-hot {
+        background: #ef4444;
+      }
+      .b-warm {
+        background: #f59e0b;
+      }
+      .b-mid {
+        background: #64748b;
+      }
+      .b-cool {
+        background: #3b82f6;
+      }
+
+      /* 모바일: 표를 행별 카드로 접기 */
+      @media (max-width: 640px) {
+        .table-card {
+          background: transparent;
+          border: 0;
+          box-shadow: none;
+        }
+        table,
+        tbody,
+        tr,
+        td {
+          display: block;
+          width: 100%;
+        }
+        thead {
+          display: none;
+        }
+        tbody tr {
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          box-shadow: var(--shadow);
+          padding: 0.35rem 0.25rem;
+          margin-bottom: 0.85rem;
+        }
+        tbody td {
+          border: 0;
+          padding: 0.35rem 0.9rem;
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+        tbody td::before {
+          content: attr(data-label);
+          color: var(--muted);
+          font-size: 0.78rem;
+          font-weight: 600;
+        }
+        td.num {
+          text-align: right;
+        }
+        td.detail {
+          max-width: none;
+        }
+        td.detail summary {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🌅 투자심리 vs 주가</h1>
+      <span class="muted" id="meta">불러오는 중…</span>
+    </header>
+    <div class="controls">
+      <div class="chips" id="markets" role="group" aria-label="시장 필터">
+        <button data-mkt="all" aria-pressed="true">전체</button>
+        <button data-mkt="KR" aria-pressed="false">🇰🇷 한국</button>
+        <button data-mkt="US" aria-pressed="false">🇺🇸 미국</button>
+      </div>
+      <label for="date">날짜</label>
+      <select id="date"></select>
+      <label for="ticker">종목</label>
+      <select id="ticker">
+        <option value="">전체</option>
+      </select>
+      <button class="toggle" id="theme" type="button" aria-label="테마 전환">
+        🌓
+      </button>
     </div>
-    <label for="date">날짜</label>
-    <select id="date"></select>
-    <label for="ticker">종목</label>
-    <select id="ticker"><option value="">전체</option></select>
-    <button class="toggle" id="theme" type="button" aria-label="테마 전환">🌓</button>
-  </div>
-  <h2 id="chartHead" hidden></h2>
-  <div class="charts" id="charts"></div>
-  <div id="priceCard" hidden style="margin-top:1.25rem"></div>
-  <h2 id="tableHead">데이터</h2>
-  <div class="card table-card">
-    <table id="table"><thead><tr>
-      <th>날짜</th><th>종목</th><th>점수</th><th>추세</th><th>종가</th><th>종가일</th><th>상세</th>
-    </tr></thead><tbody></tbody></table>
-  </div>
+    <h2 id="chartHead" hidden></h2>
+    <div class="charts" id="charts"></div>
+    <div id="priceCard" hidden style="margin-top: 1.25rem"></div>
+    <h2 id="tableHead">데이터</h2>
+    <div class="card table-card">
+      <table id="table">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            <th>종목</th>
+            <th>점수</th>
+            <th>추세</th>
+            <th>종가</th>
+            <th>종가일</th>
+            <th>상세</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-<script>
-// 따옴표(쉼표·이스케이프 포함) 처리하는 최소 CSV 파서 → 객체 배열
-function parseCSV(text) {
-  const rows = [];
-  let row = [], field = "", inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (c === '"') inQuotes = false;
-      else field += c;
-    } else if (c === '"') inQuotes = true;
-    else if (c === ",") { row.push(field); field = ""; }
-    else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      if (field !== "" || row.length) { row.push(field); rows.push(row); row = []; field = ""; }
-    } else field += c;
-  }
-  if (field !== "" || row.length) { row.push(field); rows.push(row); }
-  const header = rows.shift();
-  return rows.map(r => Object.fromEntries(header.map((h, i) => [h, r[i]])));
-}
+    <script>
+      // 따옴표(쉼표·이스케이프 포함) 처리하는 최소 CSV 파서 → 객체 배열
+      function parseCSV(text) {
+        const rows = [];
+        let row = [],
+          field = "",
+          inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const c = text[i];
+          if (inQuotes) {
+            if (c === '"' && text[i + 1] === '"') {
+              field += '"';
+              i++;
+            } else if (c === '"') inQuotes = false;
+            else field += c;
+          } else if (c === '"') inQuotes = true;
+          else if (c === ",") {
+            row.push(field);
+            field = "";
+          } else if (c === "\n" || c === "\r") {
+            if (c === "\r" && text[i + 1] === "\n") i++;
+            if (field !== "" || row.length) {
+              row.push(field);
+              rows.push(row);
+              row = [];
+              field = "";
+            }
+          } else field += c;
+        }
+        if (field !== "" || row.length) {
+          row.push(field);
+          rows.push(row);
+        }
+        const header = rows.shift();
+        return rows.map((r) =>
+          Object.fromEntries(header.map((h, i) => [h, r[i]]))
+        );
+      }
 
-// self-check: 따옴표 안 쉼표가 한 필드로 묶이는지
-console.assert(
-  parseCSV('a,b\n1,"x, y"')[0].b === "x, y",
-  "CSV 파서: 따옴표 내 쉼표 처리 실패"
-);
+      // self-check: 따옴표 안 쉼표가 한 필드로 묶이는지
+      console.assert(
+        parseCSV('a,b\n1,"x, y"')[0].b === "x, y",
+        "CSV 파서: 따옴표 내 쉼표 처리 실패"
+      );
 
-// 테마 토글 (localStorage에 저장, OS 설정 덮어씀)
-const themeBtn = document.getElementById("theme");
-themeBtn.onclick = () => {
-  const isDark = matchMedia("(prefers-color-scheme: dark)").matches;
-  const cur = document.documentElement.getAttribute("data-theme") || (isDark ? "dark" : "light");
-  const next = cur === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem("theme", next);
-  render(); // 차트 색이 테마 토큰을 쓰므로 다시 그림
-};
-const saved = localStorage.getItem("theme");
-if (saved) document.documentElement.setAttribute("data-theme", saved);
+      // 테마 토글 (localStorage에 저장, OS 설정 덮어씀)
+      const themeBtn = document.getElementById("theme");
+      themeBtn.onclick = () => {
+        const isDark = matchMedia("(prefers-color-scheme: dark)").matches;
+        const cur =
+          document.documentElement.getAttribute("data-theme") ||
+          (isDark ? "dark" : "light");
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+        render(); // 차트 색이 테마 토큰을 쓰므로 다시 그림
+      };
+      const saved = localStorage.getItem("theme");
+      if (saved) document.documentElement.setAttribute("data-theme", saved);
 
-let allRows = [];
-let market = "all"; // 시장 필터: all | KR | US
-let date = "";      // 날짜 필터: "" = 전체
-const sel = document.getElementById("ticker");
-const selDate = document.getElementById("date");
-sel.onchange = render;
-selDate.onchange = () => { date = selDate.value; render(); };
+      let allRows = [];
+      let market = "all"; // 시장 필터: all | KR | US
+      let date = ""; // 날짜 필터: "" = 전체
+      const sel = document.getElementById("ticker");
+      const selDate = document.getElementById("date");
+      sel.onchange = render;
+      selDate.onchange = () => {
+        date = selDate.value;
+        render();
+      };
 
-// 시장 필터 칩 클릭 → 필터 전환 + 종목 셀렉트 초기화(타 시장 종목 선택 충돌 방지)
-document.getElementById("markets").onclick = (e) => {
-  const btn = e.target.closest("button[data-mkt]");
-  if (!btn) return;
-  market = btn.dataset.mkt;
-  for (const b of e.currentTarget.children) b.setAttribute("aria-pressed", b === btn);
-  sel.value = "";
-  render();
-};
+      // 시장 필터 칩 클릭 → 필터 전환 + 종목 셀렉트 초기화(타 시장 종목 선택 충돌 방지)
+      document.getElementById("markets").onclick = (e) => {
+        const btn = e.target.closest("button[data-mkt]");
+        if (!btn) return;
+        market = btn.dataset.mkt;
+        for (const b of e.currentTarget.children)
+          b.setAttribute("aria-pressed", b === btn);
+        sel.value = "";
+        render();
+      };
 
-function render() {
-  const t = sel.value;
-  const base = allRows.filter(r =>
-    (market === "all" || r.market === market) && (!t || r.ticker === t)
-  );
-  // 종목 선택 시: 전체 히스토리 표 + 차트. 미선택 시: 날짜별 리스트, 차트 숨김.
-  const tableRows = (t || !date) ? base : base.filter(r => r.date === date);
-  renderTable(tableRows);
-  renderCharts(t ? base : []);
-  renderPriceCard(t ? base : []);
-  document.getElementById("tableHead").textContent =
-    t ? `📋 ${t} 전체 기록` : date ? `📋 ${date} 스냅샷` : "📋 전체 데이터";
-  selDate.disabled = !!t; // 종목 드릴다운 중엔 날짜 필터 비활성(전체 히스토리 표시)
-}
+      function render() {
+        const t = sel.value;
+        const base = allRows.filter(
+          (r) =>
+            (market === "all" || r.market === market) && (!t || r.ticker === t)
+        );
+        // 종목 선택 시: 전체 히스토리 표 + 차트. 미선택 시: 날짜별 리스트, 차트 숨김.
+        const tableRows =
+          t || !date ? base : base.filter((r) => r.date === date);
+        renderTable(tableRows);
+        renderCharts(t ? base : []);
+        renderPriceCard(t ? base : []);
+        document.getElementById("tableHead").textContent = t
+          ? `📋 ${t} 전체 기록`
+          : date
+          ? `📋 ${date} 스냅샷`
+          : "📋 전체 데이터";
+        selDate.disabled = !!t; // 종목 드릴다운 중엔 날짜 필터 비활성(전체 히스토리 표시)
+      }
 
-async function load() {
-  const meta = document.getElementById("meta");
-  try {
-    const [scoresT, pricesT, liveJ] = await Promise.all([
-      fetch("./data/scores.csv").then(r => r.text()),
-      fetch("./data/prices.csv").then(r => r.text()),
-      fetch("./data/live_prices.json").then(r => r.ok ? r.json() : null).catch(() => null),
-    ]);
-    window._livePrices = liveJ?.prices ?? {}; // { "005930.KS": { price, currency } }
-    const scores = parseCSV(scoresT);
-    const prices = parseCSV(pricesT);
+      async function load() {
+        const meta = document.getElementById("meta");
+        try {
+          const [scoresT, pricesT, liveJ] = await Promise.all([
+            fetch("./data/scores.csv").then((r) => r.text()),
+            fetch("./data/prices.csv").then((r) => r.text()),
+            fetch("./data/live_prices.json")
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+          ]);
+          window._livePrices = liveJ?.prices ?? {}; // { "005930.KS": { price, currency } }
+          const scores = parseCSV(scoresT);
+          const prices = parseCSV(pricesT);
 
-    // date+ticker로 종가 매핑 + 시장 판별(.KS=한국, 그 외=미국)
-    const priceBy = {}, marketOf = {};
-    for (const p of prices) {
-      priceBy[p.date + "|" + p.ticker] = p;
-      marketOf[p.ticker] = p.symbol.endsWith(".KS") ? "KR" : "US";
-    }
-    // 종가 데이터가 없는 종목은 종목명에 한글이 있으면 한국으로 추정
-    const mkt = t => marketOf[t] || (/[가-힣]/.test(t) ? "KR" : "US");
+          // date+ticker로 종가 매핑 + 시장 판별(.KS=한국, 그 외=미국)
+          const priceBy = {},
+            marketOf = {};
+          for (const p of prices) {
+            priceBy[p.date + "|" + p.ticker] = p;
+            marketOf[p.ticker] = p.symbol.endsWith(".KS") ? "KR" : "US";
+          }
+          // 종가 데이터가 없는 종목은 종목명에 한글이 있으면 한국으로 추정
+          const mkt = (t) => marketOf[t] || (/[가-힣]/.test(t) ? "KR" : "US");
 
-    // 점수에 종가 결합 + 시장 태깅
-    allRows = scores.map(s => ({ ...s, ...(priceBy[s.date + "|" + s.ticker] || {}), market: mkt(s.ticker) }));
-    // 최신 날짜 우선, 같은 날 안에서는 점수 높은 순(과열 종목이 위로)
-    allRows.sort((a, b) => a.date !== b.date ? (a.date < b.date ? 1 : -1) : (+b.score || 0) - (+a.score || 0));
+          // 점수에 종가 결합 + 시장 태깅
+          allRows = scores.map((s) => ({
+            ...s,
+            ...(priceBy[s.date + "|" + s.ticker] || {}),
+            market: mkt(s.ticker),
+          }));
+          // 최신 날짜 우선, 같은 날 안에서는 점수 높은 순(과열 종목이 위로)
+          allRows.sort((a, b) =>
+            a.date !== b.date
+              ? a.date < b.date
+                ? 1
+                : -1
+              : (+b.score || 0) - (+a.score || 0)
+          );
 
-    // 셀렉트 박스: 시장별 optgroup으로 묶기
-    const og = { KR: document.createElement("optgroup"), US: document.createElement("optgroup") };
-    og.KR.label = "🇰🇷 한국"; og.US.label = "🇺🇸 미국";
-    for (const t of [...new Set(allRows.map(r => r.ticker))]) og[mkt(t)].append(new Option(t, t));
-    sel.append(og.KR, og.US);
+          // 셀렉트 박스: 시장별 optgroup으로 묶기
+          const og = {
+            KR: document.createElement("optgroup"),
+            US: document.createElement("optgroup"),
+          };
+          og.KR.label = "🇰🇷 한국";
+          og.US.label = "🇺🇸 미국";
+          for (const t of [...new Set(allRows.map((r) => r.ticker))])
+            og[mkt(t)].append(new Option(t, t));
+          sel.append(og.KR, og.US);
 
-    // 날짜 셀렉트: 최신일 우선. 기본값 = 최신일(백오피스 스냅샷 뷰)
-    const dates = [...new Set(allRows.map(r => r.date))].sort().reverse();
-    selDate.append(new Option("전체 날짜", ""));
-    for (const d of dates) selDate.append(new Option(d, d));
-    date = selDate.value = dates[0] ?? "";
+          // 날짜 셀렉트: 최신일 우선. 기본값 = 최신일(백오피스 스냅샷 뷰)
+          const dates = [...new Set(allRows.map((r) => r.date))]
+            .sort()
+            .reverse();
+          selDate.append(new Option("전체 날짜", ""));
+          for (const d of dates) selDate.append(new Option(d, d));
+          date = selDate.value = dates[0] ?? "";
 
-    render();
-    meta.textContent = `점수 ${scores.length}건 · 주가 ${prices.length}건 · 최종 ${allRows[0]?.date ?? "-"}`;
-  } catch (e) {
-    meta.innerHTML = `<span class="err">데이터 로드 실패: ${e}</span>`;
-  }
-}
+          render();
+          meta.textContent = `점수 ${scores.length}건 · 주가 ${
+            prices.length
+          }건 · 최종 ${allRows[0]?.date ?? "-"}`;
+        } catch (e) {
+          meta.innerHTML = `<span class="err">데이터 로드 실패: ${e}</span>`;
+        }
+      }
 
-// 점수 → 색 배지 (70+ 과열, 50+ 강세, 30+ 중립, 그 이하 약세)
-function badge(score) {
-  if (score === "" || score == null) return "";
-  const s = +score;
-  const cls = s >= 70 ? "b-hot" : s >= 50 ? "b-warm" : s >= 30 ? "b-mid" : "b-cool";
-  return `<span class="badge ${cls}">${s}</span>`;
-}
+      // 점수 → 색 배지 (70+ 과열, 50+ 강세, 30+ 중립, 그 이하 약세)
+      function badge(score) {
+        if (score === "" || score == null) return "";
+        const s = +score;
+        const cls =
+          s >= 70 ? "b-hot" : s >= 50 ? "b-warm" : s >= 30 ? "b-mid" : "b-cool";
+        return `<span class="badge ${cls}">${s}</span>`;
+      }
 
-function renderTable(rows) {
-  const tbody = document.querySelector("#table tbody");
-  tbody.innerHTML = rows.map(r => `<tr>
+      function renderTable(rows) {
+        const tbody = document.querySelector("#table tbody");
+        tbody.innerHTML = rows
+          .map(
+            (r) => `<tr>
     <td data-label="날짜">${r.date}</td>
-    <td data-label="종목"><strong>${r.market === "KR" ? "🇰🇷" : "🇺🇸"} ${r.ticker}</strong></td>
+    <td data-label="종목"><strong>${r.market === "KR" ? "🇰🇷" : "🇺🇸"} ${
+              r.ticker
+            }</strong></td>
     <td data-label="점수" class="num">${badge(r.score)}</td>
     <td data-label="추세">${r.trend ?? ""}</td>
-    <td data-label="종가" class="num">${r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""}</td>
+    <td data-label="종가" class="num">${
+      r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""
+    }</td>
     <td data-label="종가일">${r.priceDate ?? ""}</td>
     <td data-label="상세" class="detail">${detailCell(r)}</td>
-  </tr>`).join("");
-}
+  </tr>`
+          )
+          .join("");
+      }
 
-// summary(줄바꿈으로 합쳐진 핵심 팩트)와 insight를 native <details>로 토글. 둘 다 없으면 빈 셀.
-function detailCell(r) {
-  const summary = (r.summary ?? "").trim();
-  const insight = (r.insight ?? "").trim();
-  if (!summary && !insight) return "";
-  const sum = summary
-    ? `<ul class="sum">${summary.split("\n").map(l => `<li>${l}</li>`).join("")}</ul>`
-    : "";
-  const ins = insight ? `<p class="ins">💡 ${insight}</p>` : "";
-  return `<details><summary>보기</summary>${sum}${ins}</details>`;
-}
+      // summary(줄바꿈으로 합쳐진 핵심 팩트)와 insight를 native <details>로 토글. 둘 다 없으면 빈 셀.
+      function detailCell(r) {
+        const summary = (r.summary ?? "").trim();
+        const insight = (r.insight ?? "").trim();
+        if (!summary && !insight) return "";
+        const sum = summary
+          ? `<ul class="sum">${summary
+              .split("\n")
+              .map((l) => `<li>${l}</li>`)
+              .join("")}</ul>`
+          : "";
+        const ins = insight ? `<p class="ins">💡 ${insight}</p>` : "";
+        return `<details><summary>보기</summary>${sum}${ins}</details>`;
+      }
 
-// ponytail: DST 미적용, ET≈UTC-5 고정.
-function isMarketOpen(mkt) {
-  const now = new Date();
-  const day = now.getUTCDay();
-  if (day === 0 || day === 6) return false;
-  const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes();
-  if (mkt === "KR") {
-    const kstMin = (utcMin + 9 * 60) % (24 * 60);
-    return kstMin >= 9 * 60 && kstMin < 15 * 60 + 30;
-  }
-  return utcMin >= 13 * 60 + 30 && utcMin < 21 * 60;
-}
+      // ponytail: DST 미적용, ET≈UTC-5 고정.
+      function isMarketOpen(mkt) {
+        const now = new Date();
+        const day = now.getUTCDay();
+        if (day === 0 || day === 6) return false;
+        const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+        if (mkt === "KR") {
+          const kstMin = (utcMin + 9 * 60) % (24 * 60);
+          return kstMin >= 9 * 60 && kstMin < 15 * 60 + 30;
+        }
+        return utcMin >= 13 * 60 + 30 && utcMin < 21 * 60;
+      }
 
-function marketBadge(open) {
-  return open
-    ? `<span class="market-badge market-open">개장 중</span>`
-    : `<span class="market-badge market-closed">개장 전</span>`;
-}
+      function marketBadge(open) {
+        return open
+          ? `<span class="market-badge market-open">개장 중</span>`
+          : `<span class="market-badge market-closed">개장 전</span>`;
+      }
 
-function renderPriceCard(rows) {
-  const el = document.getElementById("priceCard");
-  if (!rows.length) { el.hidden = true; return; }
-  const latest = [...rows].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-  if (!latest.price) { el.hidden = true; return; }
+      function renderPriceCard(rows) {
+        const el = document.getElementById("priceCard");
+        if (!rows.length) {
+          el.hidden = true;
+          return;
+        }
+        const latest = [...rows].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+        if (!latest.price) {
+          el.hidden = true;
+          return;
+        }
 
-  const flag = latest.market === "KR" ? "🇰🇷" : "🇺🇸";
-  const open = isMarketOpen(latest.market);
-  const live = window._livePrices?.[latest.symbol];
-  const price = live
-    ? Number(live.price).toLocaleString(undefined, { maximumFractionDigits: 2 }) + " " + (live.currency || "")
-    : Number(latest.price).toLocaleString() + " " + (latest.currency || "");
-  const label = live ? "실시간 (15분 지연)" : `기준일 ${latest.priceDate ?? latest.date}`;
+        const flag = latest.market === "KR" ? "🇰🇷" : "🇺🇸";
+        const open = isMarketOpen(latest.market);
+        const live = window._livePrices?.[latest.symbol];
+        const price = live
+          ? Number(live.price).toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            }) +
+            " " +
+            (live.currency || "")
+          : Number(latest.price).toLocaleString() +
+            " " +
+            (latest.currency || "");
+        const label = live
+          ? "(대략 15분 이상 지연 가능)"
+          : `기준일 ${latest.priceDate ?? latest.date}`;
 
-  let changeHtml = "";
-  if (live?.change != null && live?.changePct != null) {
-    const up = live.change >= 0;
-    const sign = up ? "+" : "";
-    const color = up ? "#22c55e" : "#ef4444";
-    const chg = Number(live.change).toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const pct = Number(live.changePct).toFixed(2);
-    changeHtml = `<span style="font-size:1rem;font-weight:600;color:${color}">${sign}${chg} (${sign}${pct}%)</span>`;
-  }
+        let changeHtml = "";
+        if (live?.change != null && live?.changePct != null) {
+          const up = live.change >= 0;
+          const sign = up ? "+" : "";
+          const color = up ? "#22c55e" : "#ef4444";
+          const chg = Number(live.change).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          });
+          const pct = Number(live.changePct).toFixed(2);
+          changeHtml = `<span style="font-size:1rem;font-weight:600;color:${color}">${sign}${chg} (${sign}${pct}%)</span>`;
+        }
 
-  el.hidden = false;
-  el.innerHTML = `<div class="card price-card"><div>
+        el.hidden = false;
+        el.innerHTML = `<div class="card price-card"><div>
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
       <strong>${flag} ${latest.ticker}</strong>${marketBadge(open)}
     </div>
@@ -345,50 +657,82 @@ function renderPriceCard(rows) {
     </div>
     <div class="price-label">${label}</div>
   </div></div>`;
-}
+      }
 
-// 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 라인차트로. rows 비면 차트 영역 숨김.
-function renderCharts(rows) {
-  const head = document.getElementById("chartHead");
-  const container = document.getElementById("charts");
-  container.innerHTML = ""; // 재렌더 시 기존 차트 제거
-  if (!rows.length) { head.hidden = true; return; }
+      // 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 라인차트로. rows 비면 차트 영역 숨김.
+      function renderCharts(rows) {
+        const head = document.getElementById("chartHead");
+        const container = document.getElementById("charts");
+        container.innerHTML = ""; // 재렌더 시 기존 차트 제거
+        if (!rows.length) {
+          head.hidden = true;
+          return;
+        }
 
-  head.hidden = false;
-  head.textContent = `📈 ${rows[0].ticker} 점수 vs 종가`;
-  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-  const list = [...rows].sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
+        head.hidden = false;
+        head.textContent = `📈 ${rows[0].ticker} 점수 vs 종가`;
+        const accent = getComputedStyle(document.documentElement)
+          .getPropertyValue("--accent")
+          .trim();
+        const list = [...rows].sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
 
-  const card = document.createElement("div");
-  card.className = "card";
-  card.innerHTML = `<canvas></canvas>`;
-  container.appendChild(card);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `<canvas></canvas>`;
+        container.appendChild(card);
 
-  new Chart(card.querySelector("canvas"), {
-    type: "line",
-    data: {
-      labels: list.map(r => r.date),
-      datasets: [
-        { label: "투심 점수", data: list.map(r => r.score ? +r.score : null),
-          yAxisID: "y", tension: .3, borderColor: accent, backgroundColor: accent + "22",
-          pointRadius: 3, fill: true },
-        { label: "종가", data: list.map(r => r.price ? +r.price : null),
-          yAxisID: "y1", tension: .3, borderColor: "#f59e0b", pointRadius: 3 },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: { legend: { labels: { boxWidth: 12, usePointStyle: true } } },
-      scales: {
-        y: { type: "linear", position: "left", min: 0, max: 100, title: { display: true, text: "점수" } },
-        y1: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "종가" } },
-      },
-    },
-  });
-}
+        new Chart(card.querySelector("canvas"), {
+          type: "line",
+          data: {
+            labels: list.map((r) => r.date),
+            datasets: [
+              {
+                label: "투심 점수",
+                data: list.map((r) => (r.score ? +r.score : null)),
+                yAxisID: "y",
+                tension: 0.3,
+                borderColor: accent,
+                backgroundColor: accent + "22",
+                pointRadius: 3,
+                fill: true,
+              },
+              {
+                label: "종가",
+                data: list.map((r) => (r.price ? +r.price : null)),
+                yAxisID: "y1",
+                tension: 0.3,
+                borderColor: "#f59e0b",
+                pointRadius: 3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { labels: { boxWidth: 12, usePointStyle: true } },
+            },
+            scales: {
+              y: {
+                type: "linear",
+                position: "left",
+                min: 0,
+                max: 100,
+                title: { display: true, text: "점수" },
+              },
+              y1: {
+                type: "linear",
+                position: "right",
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: "종가" },
+              },
+            },
+          },
+        });
+      }
 
-load();
-</script>
-</body>
+      load();
+    </script>
+  </body>
 </html>
