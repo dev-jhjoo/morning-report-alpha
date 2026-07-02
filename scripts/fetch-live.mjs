@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync } from "fs";
 
 // prices.csv에서 모든 심볼 추출 (KR: .KS, US: 그 외)
 const csv = readFileSync("data/prices.csv", "utf8");
@@ -39,4 +39,13 @@ for (const sym of symbols) {
 }
 
 writeFileSync("data/live_prices.json", JSON.stringify(result, null, 2));
+
+// 히스토리 CSV append (ts,symbol,price,change,changePct,currency)
+const histPath = "data/live_history.csv";
+if (!existsSync(histPath)) appendFileSync(histPath, "ts,symbol,price,change,changePct,currency\n");
+const rows = Object.entries(result.prices)
+  .map(([sym, d]) => `${result.ts},${sym},${d.price},${d.change ?? ""},${d.changePct ?? ""},${d.currency}`)
+  .join("\n") + "\n";
+appendFileSync(histPath, rows);
+
 console.log(`완료: ${Object.keys(result.prices).length}/${symbols.length}개 저장`);
