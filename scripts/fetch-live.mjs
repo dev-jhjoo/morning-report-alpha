@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from "fs";
 
-// prices.csv에서 KR 심볼(.KS) 추출
+// prices.csv에서 모든 심볼 추출 (KR: .KS, US: 그 외)
 const csv = readFileSync("data/prices.csv", "utf8");
 const symbols = [...new Set(
   csv.split("\n").slice(1)
     .map(l => l.split(",")[2]?.trim())
-    .filter(s => s?.endsWith(".KS"))
+    .filter(Boolean)
 )];
 
 async function fetchPrice(symbol) {
@@ -14,7 +14,7 @@ async function fetchPrice(symbol) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const meta = (await r.json())?.chart?.result?.[0]?.meta;
   if (!meta?.regularMarketPrice) return null;
-  return { price: meta.regularMarketPrice, currency: meta.currency ?? "KRW" };
+  return { price: meta.regularMarketPrice, currency: meta.currency ?? "" };
 }
 
 const result = { ts: new Date().toISOString(), prices: {} };
