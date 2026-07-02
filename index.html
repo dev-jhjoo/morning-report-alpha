@@ -325,12 +325,24 @@ function renderPriceCard(rows) {
     : Number(latest.price).toLocaleString() + " " + (latest.currency || "");
   const label = live ? "실시간 (15분 지연)" : `기준일 ${latest.priceDate ?? latest.date}`;
 
+  let changeHtml = "";
+  if (live?.change != null && live?.changePct != null) {
+    const up = live.change >= 0;
+    const sign = up ? "+" : "";
+    const color = up ? "#22c55e" : "#ef4444";
+    const chg = Number(live.change).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const pct = Number(live.changePct).toFixed(2);
+    changeHtml = `<span style="font-size:1rem;font-weight:600;color:${color}">${sign}${chg} (${sign}${pct}%)</span>`;
+  }
+
   el.hidden = false;
   el.innerHTML = `<div class="card price-card"><div>
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
       <strong>${flag} ${latest.ticker}</strong>${marketBadge(open)}
     </div>
-    <div class="price-main">${price}</div>
+    <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap">
+      <div class="price-main">${price}</div>${changeHtml}
+    </div>
     <div class="price-label">${label}</div>
   </div></div>`;
 }

@@ -14,7 +14,12 @@ async function fetchPrice(symbol) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const meta = (await r.json())?.chart?.result?.[0]?.meta;
   if (!meta?.regularMarketPrice) return null;
-  return { price: meta.regularMarketPrice, currency: meta.currency ?? "" };
+  return {
+    price: meta.regularMarketPrice,
+    change: meta.regularMarketChange ?? null,
+    changePct: meta.regularMarketChangePercent ?? null,
+    currency: meta.currency ?? "",
+  };
 }
 
 const result = { ts: new Date().toISOString(), prices: {} };
