@@ -1,64 +1,64 @@
 {
-  "ts": "2026-07-02T21:41:35.165Z",
+  "ts": "2026-07-03T02:33:04.425Z",
   "prices": {
     "005930.KS": {
-      "price": 286000,
-      "change": -28500,
-      "changePct": -9.062,
+      "price": 300500,
+      "change": 14500,
+      "changePct": 5.0699,
       "currency": "KRW"
     },
     "000660.KS": {
-      "price": 2187000,
-      "change": -373000,
-      "changePct": -14.5703,
+      "price": 2240000,
+      "change": 53000,
+      "changePct": 2.4234,
       "currency": "KRW"
     },
     "373220.KS": {
-      "price": 354000,
-      "change": 6000,
-      "changePct": 1.7241,
+      "price": 355000,
+      "change": 1000,
+      "changePct": 0.2825,
       "currency": "KRW"
     },
     "207940.KS": {
-      "price": 1406000,
-      "change": 10000,
-      "changePct": 0.7163,
+      "price": 1414000,
+      "change": 8000,
+      "changePct": 0.569,
       "currency": "KRW"
     },
     "005380.KS": {
-      "price": 482000,
-      "change": -5500,
-      "changePct": -1.1282,
+      "price": 478500,
+      "change": -3500,
+      "changePct": -0.7261,
       "currency": "KRW"
     },
     "000270.KS": {
-      "price": 145200,
-      "change": 3700,
-      "changePct": 2.6148,
+      "price": 147000,
+      "change": 1800,
+      "changePct": 1.2397,
       "currency": "KRW"
     },
     "068270.KS": {
-      "price": 176600,
-      "change": 2100,
-      "changePct": 1.2034,
+      "price": 181800,
+      "change": 5200,
+      "changePct": 2.9445,
       "currency": "KRW"
     },
     "005490.KS": {
-      "price": 317500,
-      "change": 2500,
-      "changePct": 0.7937,
+      "price": 314000,
+      "change": -3500,
+      "changePct": -1.1024,
       "currency": "KRW"
     },
     "105560.KS": {
-      "price": 165000,
-      "change": 6500,
-      "changePct": 4.1009,
+      "price": 169100,
+      "change": 4100,
+      "changePct": 2.4848,
       "currency": "KRW"
     },
     "006400.KS": {
-      "price": 470500,
-      "change": -20500,
-      "changePct": -4.1752,
+      "price": 448000,
+      "change": -22500,
+      "changePct": -4.7821,
       "currency": "KRW"
     },
     "AAPL": {
