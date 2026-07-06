@@ -1,5 +1,5 @@
 {
-  "ts": "2026-07-06T16:13:38.732Z",
+  "ts": "2026-07-06T18:24:05.754Z",
   "prices": {
     "005930.KS": {
       "price": 318000,
@@ -62,63 +62,63 @@
       "currency": "KRW"
     },
     "AAPL": {
-      "price": 312.88,
-      "change": 4.25,
-      "changePct": 1.3771,
+      "price": 312.93,
+      "change": 4.3,
+      "changePct": 1.3933,
       "currency": "USD"
     },
     "NVDA": {
-      "price": 197.16,
-      "change": 2.33,
-      "changePct": 1.1959,
+      "price": 196.39,
+      "change": 1.56,
+      "changePct": 0.8007,
       "currency": "USD"
     },
     "MSFT": {
-      "price": 384.75,
-      "change": -5.74,
-      "changePct": -1.4699,
+      "price": 386,
+      "change": -4.49,
+      "changePct": -1.1498,
       "currency": "USD"
     },
     "AMZN": {
-      "price": 245.57,
-      "change": 2.9,
-      "changePct": 1.195,
+      "price": 244.88,
+      "change": 2.21,
+      "changePct": 0.9107,
       "currency": "USD"
     },
     "GOOGL": {
-      "price": 364.13,
-      "change": 4.22,
-      "changePct": 1.1725,
+      "price": 364.42,
+      "change": 4.51,
+      "changePct": 1.2531,
       "currency": "USD"
     },
     "META": {
-      "price": 592.16,
-      "change": 9.26,
-      "changePct": 1.5886,
+      "price": 601,
+      "change": 18.1,
+      "changePct": 3.1052,
       "currency": "USD"
     },
     "TSLA": {
-      "price": 416.81,
-      "change": 23.36,
-      "changePct": 5.9372,
+      "price": 416.129,
+      "change": 22.679,
+      "changePct": 5.7641,
       "currency": "USD"
     },
     "AVGO": {
-      "price": 375.39,
-      "change": 14.94,
-      "changePct": 4.1448,
+      "price": 376.44,
+      "change": 15.99,
+      "changePct": 4.4361,
       "currency": "USD"
     },
     "BRK-B": {
-      "price": 504.9,
-      "change": -2.88,
-      "changePct": -0.5672,
+      "price": 506.33,
+      "change": -1.45,
+      "changePct": -0.2856,
       "currency": "USD"
     },
     "JPM": {
-      "price": 335.923,
-      "change": 1.453,
-      "changePct": 0.4344,
+      "price": 337.23,
+      "change": 2.76,
+      "changePct": 0.8252,
       "currency": "USD"
     }
   }
