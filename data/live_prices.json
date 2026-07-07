@@ -1,58 +1,58 @@
 {
-  "ts": "2026-07-07T02:53:58.851Z",
+  "ts": "2026-07-07T03:48:52.422Z",
   "prices": {
     "005930.KS": {
-      "price": 291000,
-      "change": -27000,
-      "changePct": -8.4906,
+      "price": 289500,
+      "change": -28500,
+      "changePct": -8.9623,
       "currency": "KRW"
     },
     "000660.KS": {
-      "price": 2164000,
-      "change": -179000,
-      "changePct": -7.6398,
+      "price": 2135000,
+      "change": -208000,
+      "changePct": -8.8775,
       "currency": "KRW"
     },
     "373220.KS": {
-      "price": 326750,
-      "change": -27750,
-      "changePct": -7.8279,
+      "price": 326000,
+      "change": -28500,
+      "changePct": -8.0395,
       "currency": "KRW"
     },
     "207940.KS": {
-      "price": 1405000,
-      "change": 0,
-      "changePct": 0,
+      "price": 1394000,
+      "change": -11000,
+      "changePct": -0.7829,
       "currency": "KRW"
     },
     "005380.KS": {
-      "price": 468000,
-      "change": -34000,
-      "changePct": -6.7729,
+      "price": 466000,
+      "change": -36000,
+      "changePct": -7.1713,
       "currency": "KRW"
     },
     "000270.KS": {
-      "price": 151300,
-      "change": -9400,
-      "changePct": -5.8494,
+      "price": 149900,
+      "change": -10800,
+      "changePct": -6.7206,
       "currency": "KRW"
     },
     "068270.KS": {
-      "price": 175500,
-      "change": -400,
-      "changePct": -0.2274,
+      "price": 174700,
+      "change": -1200,
+      "changePct": -0.6822,
       "currency": "KRW"
     },
     "005490.KS": {
-      "price": 310500,
-      "change": -11000,
-      "changePct": -3.4215,
+      "price": 309500,
+      "change": -12000,
+      "changePct": -3.7325,
       "currency": "KRW"
     },
     "105560.KS": {
-      "price": 170200,
-      "change": -700,
-      "changePct": -0.4096,
+      "price": 169800,
+      "change": -1100,
+      "changePct": -0.6437,
       "currency": "KRW"
     },
     "006400.KS": {
