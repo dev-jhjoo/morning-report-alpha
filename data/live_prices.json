@@ -1,46 +1,46 @@
 {
-  "ts": "2026-07-07T03:48:52.422Z",
+  "ts": "2026-07-07T04:40:19.420Z",
   "prices": {
     "005930.KS": {
-      "price": 289500,
-      "change": -28500,
-      "changePct": -8.9623,
+      "price": 288500,
+      "change": -29500,
+      "changePct": -9.2767,
       "currency": "KRW"
     },
     "000660.KS": {
-      "price": 2135000,
-      "change": -208000,
-      "changePct": -8.8775,
+      "price": 2123000,
+      "change": -220000,
+      "changePct": -9.3897,
       "currency": "KRW"
     },
     "373220.KS": {
-      "price": 326000,
-      "change": -28500,
-      "changePct": -8.0395,
+      "price": 325500,
+      "change": -29000,
+      "changePct": -8.1805,
       "currency": "KRW"
     },
     "207940.KS": {
-      "price": 1394000,
-      "change": -11000,
-      "changePct": -0.7829,
+      "price": 1393000,
+      "change": -12000,
+      "changePct": -0.8541,
       "currency": "KRW"
     },
     "005380.KS": {
-      "price": 466000,
-      "change": -36000,
-      "changePct": -7.1713,
+      "price": 462500,
+      "change": -39500,
+      "changePct": -7.8685,
       "currency": "KRW"
     },
     "000270.KS": {
-      "price": 149900,
-      "change": -10800,
-      "changePct": -6.7206,
+      "price": 149600,
+      "change": -11100,
+      "changePct": -6.9073,
       "currency": "KRW"
     },
     "068270.KS": {
-      "price": 174700,
-      "change": -1200,
-      "changePct": -0.6822,
+      "price": 174400,
+      "change": -1500,
+      "changePct": -0.8528,
       "currency": "KRW"
     },
     "005490.KS": {
@@ -50,15 +50,15 @@
       "currency": "KRW"
     },
     "105560.KS": {
-      "price": 169800,
-      "change": -1100,
-      "changePct": -0.6437,
+      "price": 170000,
+      "change": -900,
+      "changePct": -0.5266,
       "currency": "KRW"
     },
     "006400.KS": {
-      "price": 435500,
-      "change": -16000,
-      "changePct": -3.5437,
+      "price": 436500,
+      "change": -15000,
+      "changePct": -3.3223,
       "currency": "KRW"
     },
     "AAPL": {
