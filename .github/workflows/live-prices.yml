@@ -2,7 +2,7 @@ name: Live Prices
 
 on:
   schedule:
-    - cron: "*/30 0-6 * * 0-4" # KR 장중: KST 09:00–15:30 (UTC 00:00–06:30)
+    - cron: "*/30 9-15 * * 1-5" # KR 장중: KST 09:00–15:30 (UTC 00:00–06:30)
     - cron: "*/30 13-20 * * 1-5" # US 장중: ET 09:30–16:30 (UTC 13:30–20:30)
   workflow_dispatch:
 
