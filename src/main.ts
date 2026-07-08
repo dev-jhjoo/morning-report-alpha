@@ -34,6 +34,15 @@ const TARGET_TICKERS: Record<string, string> = {
   JPMorgan: "JPM",
 };
 
+// 장 시작 1시간 전 국가별 발송: MARKET=KR|US 로 대상 종목을 거른다. 미지정이면 전체(수동 실행 대비).
+// 시장 구분은 심볼 접미사(.KS=한국)로 파생 — TARGET_TICKERS에 별도 메타 없이 일관.
+const MARKET = process.env.MARKET; // "KR" | "US" | undefined
+function inMarket(symbol: string): boolean {
+  if (!MARKET) return true;
+  const isKR = symbol.endsWith(".KS");
+  return MARKET === "KR" ? isKR : !isKR;
+}
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -98,16 +107,21 @@ async function runMorningReport() {
     timeZone: "Asia/Seoul",
   });
 
-  // 리포트 헤더 생성
-  let finalReport = `🌅 <b>[Morning Report Alpha] 오늘의 투자 브리핑</b>\n🗓 Date: ${today}\n\n`;
-
-  console.log(
-    `🚀 다중 종목 분석 파이프라인 시작... (대상: ${Object.keys(
-      TARGET_TICKERS
-    ).join(", ")})`
+  const targets = Object.entries(TARGET_TICKERS).filter(([, sym]) =>
+    inMarket(sym)
   );
 
-  for (const [ticker, symbol] of Object.entries(TARGET_TICKERS)) {
+  // 리포트 헤더 생성
+  const marketLabel = MARKET === "KR" ? "🇰🇷 한국장" : MARKET === "US" ? "🇺🇸 미국장" : "전체";
+  let finalReport = `🌅 <b>[Morning Report Alpha] 오늘의 투자 브리핑 (${marketLabel})</b>\n🗓 Date: ${today}\n\n`;
+
+  console.log(
+    `🚀 다중 종목 분석 파이프라인 시작... (대상: ${targets
+      .map(([t]) => t)
+      .join(", ")})`
+  );
+
+  for (const [ticker, symbol] of targets) {
     // 1. 데이터 수집
     const news = await fetchDailyNews(ticker);
 

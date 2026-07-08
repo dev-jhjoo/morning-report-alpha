@@ -46,10 +46,8 @@ flowchart LR
 
     B --> F[(scores.csv / prices.csv)]
     B --> G[Telegram Daily Report]
-    B --> H[(live_prices.json / live_history.csv)]
 
     F --> I[Cloudflare Static Dashboard]
-    H --> I
 ```
 
 ### Daily report flow
@@ -109,15 +107,6 @@ GitHub Actions가 평일 UTC 22:00에 실행됩니다. 이는 한국 시간 기�
 뉴스 수집 → AI 분석 → 종가 수집 → CSV 저장 → Telegram 발송 → data/ 커밋
 ```
 
-### Live prices
-
-별도 워크플로가 다음 시간대에 30분 간격으로 장중 시세를 갱신합니다.
-
-- 한국 장중: KST 09:00–15:30
-- 미국 장중: ET 09:30–16:30
-
-갱신 결과는 `data/live_prices.json`, `data/live_history.csv`에 누적됩니다.
-
 ## Tech stack
 
 | Area | Technologies |
@@ -135,15 +124,10 @@ GitHub Actions가 평일 UTC 22:00에 실행됩니다. 이는 한국 시간 기�
 ```text
 .
 ├── .github/workflows/
-│   ├── cron-action.yml      # 평일 아침 AI 리포트 생성
-│   └── live-prices.yml      # 한국·미국 장중 시세 갱신
+│   └── cron-action.yml      # 평일 아침 AI 리포트 생성
 ├── data/
 │   ├── scores.csv           # 일별 투자심리 결과
-│   ├── prices.csv           # 일별 종가 이력
-│   ├── live_prices.json     # 최근 장중 시세 스냅샷
-│   └── live_history.csv     # 장중 시세 이력
-├── scripts/
-│   └── fetch-live.mjs       # 장중 시세 수집 스크립트
+│   └── prices.csv           # 일별 종가 이력
 ├── src/
 │   ├── main.ts              # 파이프라인 오케스트레이션 + Telegram 발송
 │   ├── scraper.ts           # Google News RSS 수집

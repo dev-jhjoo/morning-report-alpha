@@ -1,11 +1,12 @@
 name: Morning Report Alpha Cron
 
 on:
-  # 1. 스케줄링 (Cron)
+  # 1. 스케줄링 (Cron) — 국가별 장 시작 1시간 전 발송
   schedule:
-    # 매일 평일(월~금) 아침 8시 (KST) 실행
-    # KST 기준 월~금 08:00는 UTC 기준 일~목 23:00이므로 요일을 0-4(일~목)로 설정합니다.
-    - cron: "0 22 * * 0-4"
+    # 🇰🇷 한국장 09:00 KST의 1시간 전 = 08:00 KST = 23:00 UTC (평일). 요일은 UTC 기준 일~목(0-4).
+    - cron: "0 23 * * 0-4"
+    # 🇺🇸 미국장 09:30 ET 개장 전이면 충분 → 13:00 UTC 고정(서머타임 09:00 ET / 표준시 08:00 ET, 둘 다 개장 전). 평일 월~금.
+    - cron: "0 13 * * 1-5"
 
   # 2. 수동 실행 (GitHub Actions 탭에서 수동으로 트리거 가능)
   workflow_dispatch:
@@ -39,6 +40,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 23:00 UTC 크론 → 한국장, 그 외(13:00 UTC) → 미국장. 수동 실행은 MARKET 미지정 → 전체.
+          MARKET: ${{ github.event.schedule == '0 23 * * 0-4' && 'KR' || (github.event.schedule == '0 13 * * 1-5' && 'US' || '') }}
         run: npm start
 
       # 5단계: 누적된 데이터(점수+주가) 커밋
