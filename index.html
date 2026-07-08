@@ -222,42 +222,33 @@
         color: var(--muted);
       }
 
-      /* 현재 시세 카드 */
-      .price-card {
+      /* 당일 투심 점수 카드 */
+      .score-card {
         display: flex;
         align-items: center;
         gap: 1.2rem;
         flex-wrap: wrap;
       }
-      .price-card .price-main {
+      .score-card .score-main {
         font-size: 1.9rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         letter-spacing: -0.02em;
       }
-      .price-card .price-label {
+      .score-card .score-label {
         font-size: 0.8rem;
         color: var(--muted);
-        margin-top: 0.15rem;
       }
-      .market-badge {
-        display: inline-block;
-        padding: 0.2em 0.7em;
-        border-radius: 999px;
-        font-size: 0.78rem;
+      .score-card .score-trend {
+        font-size: 1rem;
         font-weight: 600;
+        color: var(--accent);
       }
-      .market-open {
-        background: #22c55e22;
-        color: #16a34a;
-        border: 1px solid #22c55e55;
-      }
-      .market-closed {
-        background: #6b728022;
+      .score-card .score-insight {
+        font-size: 0.85rem;
         color: var(--muted);
-        border: 1px solid var(--line);
+        margin-top: 0.35rem;
       }
-
       /* 점수 배지 — 색으로 강도 표현 */
       .badge {
         display: inline-block;
@@ -355,7 +346,7 @@
     </div>
     <h2 id="chartHead" hidden></h2>
     <div class="charts" id="charts"></div>
-    <div id="priceCard" hidden style="margin-top: 1.25rem"></div>
+    <div id="scoreCard" hidden style="margin-top: 1.25rem"></div>
     <h2 id="tableHead">데이터</h2>
     <div class="card table-card">
       <table id="table">
@@ -462,12 +453,19 @@
           (r) =>
             (market === "all" || r.market === market) && (!t || r.ticker === t)
         );
-        // 종목 선택 시: 전체 히스토리 표 + 차트. 미선택 시: 날짜별 리스트, 차트 숨김.
-        const tableRows =
-          t || !date ? base : base.filter((r) => r.date === date);
+        // 종목 선택 시: 전체 히스토리 표 + 차트. 당일 행은 score-card에서 보여주므로 표에서 제외.
+        // 미선택 시: 날짜별 리스트, 차트 숨김.
+        const latestDate = t
+          ? base.reduce((m, r) => (r.date > m ? r.date : m), "")
+          : null;
+        const tableRows = t
+          ? base.filter((r) => r.date !== latestDate)
+          : !date
+          ? base
+          : base.filter((r) => r.date === date);
         renderTable(tableRows);
         renderCharts(t ? base : []);
-        renderPriceCard(t ? base : []);
+        renderScoreCard(t ? base : []);
         document.getElementById("tableHead").textContent = t
           ? `📋 ${t} 전체 기록`
           : date
@@ -479,14 +477,10 @@
       async function load() {
         const meta = document.getElementById("meta");
         try {
-          const [scoresT, pricesT, liveJ] = await Promise.all([
+          const [scoresT, pricesT] = await Promise.all([
             fetch("./data/scores.csv").then((r) => r.text()),
             fetch("./data/prices.csv").then((r) => r.text()),
-            fetch("./data/live_prices.json")
-              .then((r) => (r.ok ? r.json() : null))
-              .catch(() => null),
           ]);
-          window._livePrices = liveJ?.prices ?? {}; // { "005930.KS": { price, currency } }
           const scores = parseCSV(scoresT);
           const prices = parseCSV(pricesT);
 
@@ -588,78 +582,38 @@
         return `<details><summary>보기</summary>${sum}${ins}</details>`;
       }
 
-      // ponytail: DST 미적용, ET≈UTC-5 고정.
-      function isMarketOpen(mkt) {
-        const now = new Date();
-        const day = now.getUTCDay();
-        if (day === 0 || day === 6) return false;
-        const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes();
-        if (mkt === "KR") {
-          const kstMin = (utcMin + 9 * 60) % (24 * 60);
-          return kstMin >= 9 * 60 && kstMin < 15 * 60 + 30;
-        }
-        return utcMin >= 13 * 60 + 30 && utcMin < 21 * 60;
-      }
-
-      function marketBadge(open) {
-        return open
-          ? `<span class="market-badge market-open">개장 중</span>`
-          : `<span class="market-badge market-closed">개장 전</span>`;
-      }
-
-      function renderPriceCard(rows) {
-        const el = document.getElementById("priceCard");
-        if (!rows.length) {
-          el.hidden = true;
-          return;
-        }
+      // 당일 투심 점수 카드. 종가(D-1)와 시점이 달라 그래프에 섞지 않고 여기서 별도 표시.
+      function renderScoreCard(rows) {
+        const el = document.getElementById("scoreCard");
         const latest = [...rows].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-        if (!latest.price) {
+        if (!latest || !latest.score) {
           el.hidden = true;
           return;
         }
 
         const flag = latest.market === "KR" ? "🇰🇷" : "🇺🇸";
-        const open = isMarketOpen(latest.market);
-        const live = window._livePrices?.[latest.symbol];
-        const price = live
-          ? Number(live.price).toLocaleString(undefined, {
-              maximumFractionDigits: 2,
-            }) +
-            " " +
-            (live.currency || "")
-          : Number(latest.price).toLocaleString() +
-            " " +
-            (latest.currency || "");
-        const label = live
-          ? "(대략 30분 이상 지연 가능)"
-          : `기준일 ${latest.priceDate ?? latest.date}`;
-
-        let changeHtml = "";
-        if (live?.change != null && live?.changePct != null) {
-          const up = live.change >= 0;
-          const sign = up ? "+" : "";
-          const color = up ? "#22c55e" : "#ef4444";
-          const chg = Number(live.change).toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-          });
-          const pct = Number(live.changePct).toFixed(2);
-          changeHtml = `<span style="font-size:1rem;font-weight:600;color:${color}">${sign}${chg} (${sign}${pct}%)</span>`;
-        }
+        const score = +latest.score;
+        const icon = score >= 70 ? "🔥" : score <= 30 ? "❄️" : "📊";
+        const insight = latest.insight
+          ? `<div class="score-insight">💡 ${latest.insight}</div>`
+          : "";
 
         el.hidden = false;
-        el.innerHTML = `<div class="card price-card"><div>
+        el.innerHTML = `<div class="card score-card"><div>
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
-      <strong>${flag} ${latest.ticker}</strong>${marketBadge(open)}
+      <strong>${flag} ${latest.ticker}</strong>
+      <span class="score-label">${latest.date} 투심</span>
     </div>
     <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap">
-      <div class="price-main">${price}</div>${changeHtml}
+      <div class="score-main">${icon} ${score}점</div>
+      ${latest.trend ? `<span class="score-trend">${latest.trend}</span>` : ""}
     </div>
-    <div class="price-label">${label}</div>
+    ${insight}
   </div></div>`;
       }
 
-      // 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 라인차트로. rows 비면 차트 영역 숨김.
+      // 선택 종목 1개의 점수(좌축)·종가(우축)를 시간순 이중축 라인차트로. rows 비면 차트 영역 숨김.
+      // 당일 점수는 score-card에서 별도로 보여주므로 차트는 전일(D-1)까지만 그린다.
       function renderCharts(rows) {
         const head = document.getElementById("chartHead");
         const container = document.getElementById("charts");
@@ -670,11 +624,18 @@
         }
 
         head.hidden = false;
-        head.textContent = `📈 ${rows[0].ticker} 점수 vs 종가`;
+        head.textContent = `📈 ${rows[0].ticker} 점수 vs 종가 (전일까지)`;
         const accent = getComputedStyle(document.documentElement)
           .getPropertyValue("--accent")
           .trim();
-        const list = [...rows].sort((a, b) => (a.date < b.date ? -1 : 1)); // 오래된→최신
+        // 오래된→최신 정렬 후 마지막(당일) 1개 제외 → 차트는 D-1까지.
+        const list = [...rows]
+          .sort((a, b) => (a.date < b.date ? -1 : 1))
+          .slice(0, -1);
+        if (!list.length) {
+          head.hidden = true;
+          return;
+        }
 
         const card = document.createElement("div");
         card.className = "card";
