@@ -1,2 +1,3 @@
 - [Project Vision](project_vision.md) — 투자심리 점수 vs 실제 주가 상관관계를 축적하는 데이터 파이프라인 + 분석/대시보드 구축이 장기 목표
 - [Delivery Schedule](project_delivery_schedule.md) — 국가별 장 시작 1시간 전 발송으로 하루 2회(한국장/미국장) 텔레그램 전송
+- [Silent Skip on Empty News](project_silent_skip_on_empty_news.md) — 뉴스 0건이면 점수만 조용히 누락(가격은 정상), 특정 종목 점수 누락의 근본 원인
