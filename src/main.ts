@@ -43,6 +43,12 @@ function inMarket(symbol: string): boolean {
   return MARKET === "KR" ? isKR : !isKR;
 }
 
+// 백필/디버그용: TICKER="NVIDIA" 또는 "NVIDIA,Apple"로 특정 종목만 실행. 미지정이면 전체.
+const TICKERS = process.env.TICKER?.split(",").map((t) => t.trim()).filter(Boolean);
+function inTickerFilter(ticker: string): boolean {
+  return !TICKERS || TICKERS.includes(ticker);
+}
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -107,8 +113,8 @@ async function runMorningReport() {
     timeZone: "Asia/Seoul",
   });
 
-  const targets = Object.entries(TARGET_TICKERS).filter(([, sym]) =>
-    inMarket(sym)
+  const targets = Object.entries(TARGET_TICKERS).filter(
+    ([ticker, sym]) => inMarket(sym) && inTickerFilter(ticker)
   );
 
   // 리포트 헤더 생성
@@ -148,7 +154,9 @@ async function runMorningReport() {
       finalReport += priceLine;
       finalReport += `  💡 <i>${analysis.insight}</i>\n\n`;
     } else {
-      finalReport += `<b>[${ticker}]</b> ❌ 분석 데이터를 가져오지 못했습니다.\n${priceLine}\n`;
+      // 실패 이유를 리포트에 드러냄(뉴스 0건 vs AI 재시도 소진) → 조용한 누락 대신 텔레그램에서 바로 감지
+      const reason = news.length === 0 ? "뉴스 0건" : "AI 분석 실패(재시도 소진)";
+      finalReport += `<b>[${ticker}]</b> ❌ ${reason}\n${priceLine}\n`;
     }
 
     // API Rate Limit 방지를 위해 종목당 2초 대기

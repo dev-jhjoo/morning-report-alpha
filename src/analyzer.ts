@@ -87,8 +87,11 @@ export async function analyzeNews(
     ${newsList.map((n, i) => `${i + 1}. ${n.title}`).join("\n")}
     `;
 
-  // 4. 재시도(Retry) 로직 도입 (최대 3회)
-  let retries = 3;
+  // 4. 재시도(Retry) 로직. 503(과부하)이 3초 간격 3회로는 짧은 스파이크를 못 넘겨
+  // 단일 종목이 조용히 누락됐음(2026-07-09/10 NVIDIA) → 횟수↑ + 지수 백오프로 대기 창을 늘림.
+  const maxRetries = 5;
+  let retries = maxRetries;
+  let attempt = 0;
   while (retries > 0) {
     try {
       const result = await model.generateContent(prompt);
@@ -104,14 +107,16 @@ export async function analyzeNews(
     } catch (error: any) {
       // 429(rate limit/quota), 503(과부하)은 재시도. 그 외는 즉시 포기.
       if (error.status === 429 || error.status === 503) {
-        // 서버가 RetryInfo.retryDelay("36s")를 주면 그만큼, 없으면 3초 대기 (최대 60초)
+        // 서버가 RetryInfo.retryDelay("36s")를 주면 그만큼 우선. 없으면 지수 백오프(3,6,12,24…초).
+        // 503은 대개 RetryInfo가 없어 이전엔 3초 고정 → 스파이크를 못 넘겼음. 상한 60초.
         const retryInfo = error?.errorDetails?.find((d: any) =>
           String(d?.["@type"]).includes("RetryInfo")
         );
         const delaySec = Math.min(
-          parseInt(retryInfo?.retryDelay, 10) || 3,
+          parseInt(retryInfo?.retryDelay, 10) || 3 * 2 ** attempt,
           60
         );
+        attempt++;
         console.log(
           `⏳ [${ticker}] ${error.status} 응답. ${delaySec}초 대기 후 재시도... (남은 시도: ${
             retries - 1
@@ -126,6 +131,6 @@ export async function analyzeNews(
     }
   }
 
-  console.error(`❌ [${ticker}] 3회 재시도 실패. 분석을 건너뜁니다.`);
+  console.error(`❌ [${ticker}] ${maxRetries}회 재시도 실패. 분석을 건너뜁니다.`);
   return null;
 }
