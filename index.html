@@ -272,6 +272,16 @@
       .b-cool {
         background: #3b82f6;
       }
+      /* 등락율: 상승 빨강 하락 파랑(한국식), 보합 회색 */
+      .up {
+        color: #ef4444;
+      }
+      .down {
+        color: #3b82f6;
+      }
+      .flat {
+        color: var(--muted);
+      }
 
       /* 모바일: 표를 행별 카드로 접기 */
       @media (max-width: 640px) {
@@ -546,20 +556,30 @@
         return `<span class="badge ${cls}">${s}</span>`;
       }
 
+      // 종가 셀: 종가 + 이전(더 오래된) 레코드 대비 등락율. prev 없으면 0%.
+      // rows는 날짜 내림차순이라 prev = 배열의 다음 행. 티커가 다르면(전체 뷰) 비교 안 함.
+      function closeCell(r, prev) {
+        if (!r.price) return "";
+        const txt = Number(r.price).toLocaleString() + " " + (r.currency || "");
+        const p0 = prev && prev.ticker === r.ticker ? +prev.price : NaN;
+        const pct = p0 ? ((+r.price - p0) / p0) * 100 : 0;
+        const cls = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+        const sign = pct > 0 ? "+" : "";
+        return `${txt} <span class="${cls}">(${sign}${pct.toFixed(1)}%)</span>`;
+      }
+
       function renderTable(rows) {
         const tbody = document.querySelector("#table tbody");
         tbody.innerHTML = rows
           .map(
-            (r) => `<tr>
+            (r, i) => `<tr>
     <td data-label="날짜">${r.date}</td>
     <td data-label="종목"><strong>${r.market === "KR" ? "🇰🇷" : "🇺🇸"} ${
               r.ticker
             }</strong></td>
     <td data-label="점수" class="num">${badge(r.score)}</td>
     <td data-label="추세">${r.trend ?? ""}</td>
-    <td data-label="종가" class="num">${
-      r.price ? Number(r.price).toLocaleString() + " " + (r.currency || "") : ""
-    }</td>
+    <td data-label="종가" class="num">${closeCell(r, rows[i + 1])}</td>
     <td data-label="종가일">${r.priceDate ?? ""}</td>
     <td data-label="상세" class="detail">${detailCell(r)}</td>
   </tr>`
