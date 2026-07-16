@@ -524,11 +524,13 @@
           const scores = parseCSV(scoresT);
           const prices = parseCSV(pricesT);
 
-          // date+ticker로 종가 매핑 + 시장 판별(.KS=한국, 그 외=미국)
+          // priceDate(종가의 실제 날짜)+ticker로 종가 매핑 + 시장 판별(.KS=한국, 그 외=미국)
+          // 분석은 장 시작 전 실행 → 미국주는 수집일 D에 D-1 종가가 잡힌다.
+          // 점수(날짜 D)에는 "그 날의 종가"(priceDate==D, 실제로는 D+1에 수집됨)를 붙여 날짜를 정렬한다.
           const priceBy = {},
             marketOf = {};
           for (const p of prices) {
-            priceBy[p.date + "|" + p.ticker] = p;
+            priceBy[p.priceDate + "|" + p.ticker] = p;
             marketOf[p.ticker] = p.symbol.endsWith(".KS") ? "KR" : "US";
           }
           // 종가 데이터가 없는 종목은 종목명에 한글이 있으면 한국으로 추정
@@ -538,6 +540,7 @@
           allRows = scores.map((s) => ({
             ...s,
             ...(priceBy[s.date + "|" + s.ticker] || {}),
+            date: s.date, // 병합된 price의 date(수집일)가 점수 날짜를 덮지 않게 고정
             market: mkt(s.ticker),
           }));
           // 최신 날짜 우선, 같은 날 안에서는 점수 높은 순(과열 종목이 위로)
