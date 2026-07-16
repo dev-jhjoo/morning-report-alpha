@@ -108,10 +108,13 @@ async function runMorningReport() {
   const today = new Date().toLocaleDateString("ko-KR", {
     timeZone: "Asia/Seoul",
   });
-  // 저장용 ISO 날짜 (YYYY-MM-DD, Asia/Seoul)
-  const isoDate = new Date().toLocaleDateString("en-CA", {
-    timeZone: "Asia/Seoul",
-  });
+  // 저장용 ISO 날짜(YYYY-MM-DD): 종목의 현지 거래일 기준으로 라벨링해
+  // date(수집일)와 실제 거래일 요일이 어긋나지 않게 한다.
+  // MARKET(크론)이 아니라 심볼로 판정 — 전체/수동 실행이 KST 토요일에 US를 처리해도 ET로 찍힘.
+  const isoDateFor = (symbol: string) =>
+    new Date().toLocaleDateString("en-CA", {
+      timeZone: symbol.endsWith(".KS") ? "Asia/Seoul" : "America/New_York",
+    });
 
   const targets = Object.entries(TARGET_TICKERS).filter(
     ([ticker, sym]) => inMarket(sym) && inTickerFilter(ticker)
@@ -133,6 +136,8 @@ async function runMorningReport() {
 
     // 2. AI 분석
     const analysis = await analyzeNews(ticker, news);
+
+    const isoDate = isoDateFor(symbol); // 종목 현지 거래일 기준 날짜
 
     // 3. 주가 수집 (Phase 2) — 분석 성공 여부와 무관하게 시계열을 끊지 않도록 항상 시도
     const price = await fetchClosePrice(symbol);
