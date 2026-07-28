@@ -460,7 +460,11 @@
       let chartRange = "day"; // 차트 집계 단위: day | week | month
       const sel = document.getElementById("ticker");
       const selDate = document.getElementById("date");
-      sel.onchange = render;
+      sel.onchange = () => {
+        history.pushState({ ticker: sel.value }, '', sel.value ? `?t=${sel.value}` : location.pathname);
+        render();
+      };
+      window.onpopstate = e => { sel.value = e.state?.ticker ?? ''; render(); };
       selDate.onchange = () => {
         date = selDate.value;
         render();
@@ -789,7 +793,10 @@
         });
       }
 
-      load();
+      load().then(() => {
+        const t = new URLSearchParams(location.search).get('t');
+        if (t) { sel.value = t; render(); }
+      });
     </script>
   </body>
 </html>
